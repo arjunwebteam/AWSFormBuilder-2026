@@ -1,0 +1,291 @@
+﻿@{
+    string mailTypeCtx = ViewBag.MailType as string;
+    string formTitleCtx = ViewBag.FormTitle as string;
+    Int64 formIdCtx = ViewBag.FormId != null ? (Int64)ViewBag.FormId : 0;
+    List<string> formFields = ViewBag.FormFields as List<string> ?? new List<string>();
+    string headingLabel = (mailTypeCtx == "Admin" ? "Admin Mail" : "User Mail");
+
+    ViewBag.Title = "EditMailTemplate";
+    Layout = "~/Areas/Admin/Views/Shared/_MainLayout.cshtml";
+    ViewBag.Pageheading = !string.IsNullOrEmpty(formTitleCtx) ? headingLabel + " - " + formTitleCtx : "Edit MailTemplate";
+    ArjunFormBuilder.Entities.MailTemplates objTemplates = ViewBag.objTemplates;
+    List<ArjunFormBuilder.Entities.FormListItem> lstForms = ViewBag.lstForms;
+}
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        $('#wOthers,#wMailTemplates').addClass('active');
+        $('.alert-danger').append('<i class="fa fa-ban"></i><button class="close" aria-hidden="true" data-dismiss="alert" type="button">×</button>');
+        $('.alert-success').append('<i class="fa fa-check"></i><button class="close" aria-hidden="true" data-dismiss="alert" type="button">×</button>');
+    });
+
+    //function Validate() {
+
+    //    if ($.trim($('#Heading').val()) == '') { document.getElementsByName('Heading')[0].placeholder = 'Required'; $('#Heading').focus().addClass("validate"); return false; } else { $('#Heading').focus().removeClass("validate"); }
+    //    if ($.trim($('#Subject').val()) == '') { document.getElementsByName('Subject')[0].placeholder = 'Required'; $('#Subject').focus().addClass("validate"); return false; } else { $('#Subject').focus().removeClass("validate"); }
+    //    if (CKEDITOR.instances.Description.getData() == "") { $('#Description').focus().addClass("red-border"); $('#lblDescription').html('Required.'); return false; } else { $('#Description').val(CKEDITOR.instances.Description.getData()); $('#lblDescription').html(''); }
+
+    return true;
+    }
+</script>
+<script type="text/javascript" src="ckeditor/ckeditor.js"></script>
+<script type="text/javascript" src="ckfinder/ckfinder.js"></script>
+<style>
+
+    .btn-save-form {
+        background: #4a7cf6;
+        border: none;
+        border-radius: 8px;
+        padding: 9px 22px;
+        font-weight: 600;
+        color: #fff;
+    }
+
+        .btn-save-form:hover {
+            background: #3763d8;
+            color: #fff;
+        }
+</style>
+<div class="content">
+   
+    @if (!string.IsNullOrEmpty(formTitleCtx))
+    {
+        <div class="alert alert-info mb-3">
+            You are configuring the <strong>@headingLabel</strong> mail for form: <strong>@formTitleCtx</strong>.
+        </div>
+    }
+
+    @using (Html.BeginForm("AddMailTemplate", "MailTemplates", FormMethod.Post, new { enctype = "multipart/form-data", @id = "SponsorForm", @name = "SponsorForm" }))
+    {
+        <input type="hidden" name="MailTemplateId" id="MailTemplateId" value="@objTemplates.MailTemplateId" />
+        <input type="hidden" name="mid" id="mid" value="@ViewBag.mid" />
+        <input type="hidden" name="ContextFormId" value="@formIdCtx" />
+        <input type="hidden" name="mid" id="mid" value="@ViewBag.mid" />
+        <div class="box validation">
+        
+            <div class="card">
+              
+                <div class="card-body">
+                    <div class="row g-3">
+        
+                        <input type="hidden" name="Heading" id="Heading" value="@objTemplates.Heading" />
+
+                        <div class="col-lg-3 col-md-6">
+                            <div class="input-box">
+                                <label class="form-label">Subject : <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="Subject" id="Subject" value="@objTemplates.Subject" onkeypress="return Common.isChar(event)">
+                            </div>
+                        </div>
+                        <div class="col-lg-3 col-md-6">
+                            <div class="input-box">
+                                <label class="form-label">Admin Email : </label>
+                                <input type="text" class="form-control" name="BCC" id="BCC" value="@objTemplates.BCC"  placeholder="e.g. someone@example.com, another@example.com">
+                                <small class="text-muted">Comma-separated email addresses.</small>
+                            </div>
+                        </div>
+                        <div class="col-lg-3 col-md-6 justify-content-end">
+                            <div class="input-box">
+                                <label class="form-label">&nbsp;</label>
+                                <label class="form-label">&nbsp;</label>
+                                <button type="button"
+                                        class="btn-save-form"
+                                        style="width:81%;"
+                                        onclick="window.location.href='@Url.Action("Index", "Form")'">
+                                    ← Back to Form List
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-lg-3 col-md-6" style="display:none;">
+                            <div class="input-box">
+                                <label class="form-label">Mail Type : </label>
+                                <select class="single-select" name="MailType" id="MailType" style="">
+                                    <option value="">-- Select Mail Type --</option>
+
+                                    <option @(objTemplates.MailType == "User" ? "selected=selected" : "") value="User">User</option>
+                                    <option @(objTemplates.MailType == "Admin" ? "selected=selected" : "") value="Admin">Admin</option>
+                                </select>
+                            </div>
+                        </div>
+                      
+                        <div class="col-lg-3 col-md-6" style="display:none;">
+                            <div class="input-box">
+                                <label class="form-label">Mail Logo : </label>
+                                <input type="file" class="form-control" name="Logo" id="Logo" />
+                                <small class="text-muted">Leave empty to keep the current logo.</small>
+                                @if (!string.IsNullOrEmpty(objTemplates.LogoUrl))
+                                {
+                                    <div class="mt-2">
+                                        <img src="@objTemplates.LogoUrl" alt="Current logo" style="max-height:60px;border:1px solid #ddd;padding:2px;" />
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+     
+                    <div class="card" style="display:none;">
+                <div class="card-body">
+                    <div class="box-header">
+                        <h3 class="box-title dis-in">Send this Mail for these Forms</h3>
+                    </div>
+                    <div class="row g-2 mt-1">
+                        @if (lstForms != null && lstForms.Count > 0)
+                        {
+                            foreach (var frm in lstForms)
+                            {
+                                <div class="col-lg-3 col-md-4 col-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="SelectedFormIds" value="@frm.FormId" id="frm_@frm.FormId" @(frm.IsSelected ? "checked=checked" : "") />
+                                        <label class="form-check-label" for="frm_@frm.FormId">@frm.Title</label>
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="col-12">
+                                <span class="text-muted">No active forms found.</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <div class="box validation">
+                        <div class="box-header d-flex justify-content-between align-items-center">
+                            <h3 class="box-title dis-in">Description <span class="text-danger">*</span></h3>
+                            @* ✅ ADDED — toggle for the applicant-fields insert panel *@
+                            @if (formFields.Count > 0)
+                            {
+                                <a href="javascript:void(0)" id="toggleFieldsPanel" class="text-primary">Show available applicant fields</a>
+                            }
+                        </div>
+                        <div class="box-body">
+                            <div class="row  g-3">
+                                <div class="col-lg-9" id="editorCol">
+                                    <div class="input-box">
+                                        <textarea rows="10" placeholder="Description *" name="Description" id="Description" cols="80" style="visibility: hidden; display: none;">@objTemplates.Description</textarea><br />
+                                        <span class="field-validation-error" id="Description"></span>
+                                        <script type="text/javascript">
+                                            var editor = CKEDITOR.replace('Description', { contentsCss: '../css/editor.css' });
+                                            CKFinder.setupCKEditor(editor, 'ckfinder/');
+                                        </script>
+                                    </div>
+                                </div>
+                                <div class="col-lg-3" id="fieldsPanel" style="display:none;">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <strong>Available Fields</strong>
+                                                <a href="javascript:void(0)" id="closeFieldsPanel" class="text-danger">&times;</a>
+                                            </div>
+                                            @if (!string.IsNullOrEmpty(formTitleCtx))
+                                            {
+                                                <div class="text-muted small mb-2">From: @formTitleCtx</div>
+                                            }
+                                            <ul class="list-unstyled mb-0" style="max-height:400px; overflow-y:auto;">
+                                                @foreach (var f in formFields)
+                                                {
+                                                    <li class="mb-1">
+                                                        <a href="javascript:void(0)" class="field-insert-link" data-field="@f">[@f]</a>
+                                                    </li>
+                                                }
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-lg-3 col-3 text-end ms-auto">
+                <button type="submit" class="btn btn-success px-3 " value="submit">Submit</button>
+                <a class="btn btn-primary px-3" href="@Url.Action("Index", "MailTemplates", new { mid = ViewBag.mid })">Cancel</a>
+            </div>
+        </div>
+    }
+</div>
+<script>
+
+    $(document).ready(function () {
+        $('#toggleFieldsPanel').on('click', function () {
+            $('#fieldsPanel').toggle();
+            $('#editorCol').toggleClass('col-lg-9').toggleClass('col-lg-12');
+        });
+        $('#closeFieldsPanel').on('click', function () {
+            $('#fieldsPanel').hide();
+            $('#editorCol').removeClass('col-lg-9').addClass('col-lg-12');
+        });
+        $(document).on('click', '.field-insert-link', function (e) {
+            e.preventDefault();
+            var placeholder = '[' + $(this).data('field') + ']';
+            var editor = CKEDITOR.instances.Description;
+            if (editor) {
+                editor.insertText(placeholder);
+                editor.focus();
+            }
+        });
+    });
+
+    $(document).ready(function () {
+
+        $('#SponsorForm').on('submit', function () {
+            $('#Heading').val($('#Subject').val());
+        });
+
+        $("#SponsorForm").validate({
+            rules: {
+                Subject: "required",
+                Description: "required",
+            },
+            messages: {
+                Subject: "Subject  Is Required",
+                Description: "Description  Is Required",
+            },
+
+            errorElement: "div",
+            errorPlacement: function (error, element) {
+                // Add the `invalid-feedback` class to the error element
+                error.addClass("invalid-feedback");
+
+                if (element.prop("type") === "checkbox") {
+                    error.insertAfter(element.parent("label"));
+                } else {
+                    error.insertAfter(element);
+                }
+
+                // Move the error element after the fieldset element
+                if (element.closest(".input-box").length) {
+                    element.closest(".input-box").after(error);
+                }
+            },
+            highlight: function (element, errorClass, validClass) {
+                // Highlight the input, textarea, or select element with the `is-invalid` class
+                var $element = $(element);
+                if ($element.is('input, textarea, select')) {
+                    $element.addClass("is-invalid").removeClass("is-valid");
+                }
+
+
+            },
+            unhighlight: function (element, errorClass, validClass) {
+                // Unhighlight the input, textarea, or select element by adding the `is-valid` class
+                var $element = $(element);
+                if ($element.is('input, textarea, select')) {
+                    $element.addClass("is-valid").removeClass("is-invalid");
+                }
+
+            },
+
+
+        });
+    });
+
+</script>

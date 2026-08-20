@@ -1,0 +1,95 @@
+﻿@{
+    ViewBag.Title = "Forms";
+    Layout = "~/Areas/Admin/Views/Shared/_MainLayout.cshtml";
+    Int64 ChapterId = ViewBag.ChapterId;
+}
+
+<input id="hdnPageNo" type="hidden" value="1" />
+<input id="hdnsortcolumn" type="hidden" value="CreatedDate" />
+<input id="hdnsortorder" type="hidden" value="DESC" />
+
+<div class="card">
+    <div class="card-header py-3 mb-3">
+        <div class="row gx-2">
+            <div class="col-lg-3 col-md-6 col-8">
+                <div class="input-box">
+                    <label class="form-label">Search by Title</label>
+                    <input type="text" class="form-control" name="keyword" id="keyword" placeholder="Form Title">
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="btn-align" style="margin-top:32px;">
+                    <button type="button" class="btn btn-primary px-3" onclick="FormsBind(1);">Search</button>
+                    <button type="button" class="btn btn-danger px-3" onclick="ClearSearch();">Clear</button>
+                </div>
+            </div>
+            <div class="col-lg-3 col-4 text-end ms-auto">
+                <div class="btn-align" style="margin-top:32px;">
+                    <a class="btn btn-primary" href="@Url.Action("FormBuilder", "Form")">Add New Form</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="divForms" class="box-body table-responsive"></div>
+
+    <script>
+        $(document).ready(function () {
+            FormsBind(1);
+        });
+
+        function FormsBind(Pageno) {
+            var sortcolumn = $('#hdnsortcolumn').val();
+            var sortorder = $('#hdnsortorder').val();
+            var Search = $('#keyword').val();
+
+            $.ajax({
+                url: '@Url.Action("FormsList", "Form")',
+                type: 'GET',
+                cache: false,
+                data: { Search: Search, PageNo: Pageno, SortColumn: sortcolumn, SortOrder: sortorder },
+                success: function (result) {
+                    $('#divForms').html(result);
+                }
+            });
+        }
+
+        function sortresult(sortcolumn) {
+            $('#hdnsortorder').val(($('#hdnsortorder').val() == 'ASC' ? 'DESC' : 'ASC'));
+            $('#hdnsortcolumn').val(sortcolumn);
+            FormsBind(1);
+        }
+
+        function ClearSearch() {
+            $('#keyword').val('');
+            FormsBind(1);
+        }
+
+        function FormStatus(FormId) {
+            $.ajax({
+                type: "POST",
+                url: '@Url.Action("FormStatus", "Form")',
+                data: { FormId: FormId },
+                success: function (result) {
+                    showLobiboxNotification(result.messageType, result.message);
+                    FormsBind($('#hdnPageNo').val());
+                }
+            });
+        }
+
+        function DeleteForm(FormId) {
+            var val2 = confirm("Do you want to delete this form?");
+            if (val2) {
+                $.ajax({
+                    type: "POST",
+                    url: '@Url.Action("DeleteForm", "Form")',
+                    data: { FormId: FormId },
+                    success: function (result) {
+                        showLobiboxNotification(result.messageType, result.message);
+                        FormsBind($('#hdnPageNo').val());
+                    }
+                });
+            }
+        }
+    </script>
+</div>

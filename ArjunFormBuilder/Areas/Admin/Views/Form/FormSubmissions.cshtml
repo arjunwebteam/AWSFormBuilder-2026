@@ -1,0 +1,457 @@
+﻿@{
+    ViewBag.Title = "Forms";
+    Layout = "~/Areas/Admin/Views/Shared/_MainLayout.cshtml";
+}
+@{
+    string sortcolumn = (string)ViewBag.sortcolumn;
+    string sortorder = (string)ViewBag.sortorder;
+    Int64 Total = (Int64)ViewBag.total;
+    var PageNo = (Int64)ViewBag.pageno;
+    var Items = (Int64)ViewBag.items;
+    var FormId = (Int64)ViewBag.FormId;
+    var FormTitle = (string)ViewBag.FormTitle;
+    var lstSubmissions = ViewBag.lstSubmissions as List<ArjunFormBuilder.Entities.FormSubmissionModel>;
+    var summaryFields = ViewBag.SummaryFields as List<dynamic>;
+}
+
+<div class="card">
+  <div class="card-header py-3">
+    <div class="d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="bi bi-list-ul me-2"></i>
+             @FormTitle
+        </h5>
+        <div>
+            <a href="@Url.Action("Index", "Form")" class="btn btn-secondary btn-sm">
+                <i class="bi bi-arrow-left"></i> Back to Forms
+            </a>
+            
+            @if (ViewBag.lstSubmissions != null && ((List<ArjunFormBuilder.Entities.FormSubmissionModel>)ViewBag.lstSubmissions).Count > 0)
+            {
+                <a class="btn btn-success btn-sm ms-2" onclick="ExportSubmissionsToExcel();" style="white-space: nowrap;">
+                    <i class="bi bi-download"></i> Export Excel
+                </a>
+            }
+
+            <a href="@Url.Action("RenderForm", "Form", new { id = FormId })" target="_blank" class="btn btn-primary btn-sm ms-2">
+                <i class="bi bi-eye"></i> View Form
+            </a>
+        </div>
+    </div>
+</div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th width="5%" style="text-align:center">S.No.</th>
+                        <th width="20%">
+                            <a class="cursor-pointer" style="color:black;" onclick="sortresult('SubmittedBy');">
+                                Submitted By @if (sortcolumn == "SubmittedBy") {
+                                <img alt="@sortorder" src="Content/Admin/images/sort_@(sortorder).gif" />
+                                                }
+                            </a>
+                        </th>
+                        @if (summaryFields != null)
+                        {
+                            foreach (var field in summaryFields)
+                            {
+                                var fieldId = field.Id.ToString();
+                                var fieldLabel = field.Label.ToString();
+                                <th width="15%">
+                                    <a class="cursor-pointer" style="color:black;" onclick="sortresult('@fieldId');">
+                                        @fieldLabel @if (sortcolumn == fieldId) {
+                                        <img alt="@sortorder" src="Content/Admin/images/sort_@(sortorder).gif" />
+                                                }
+                                    </a>
+                                </th>
+                            }
+                        }
+                        <th width="15%">
+                            <a class="cursor-pointer" style="color:black;" onclick="sortresult('SubmittedDate');">
+                                Submitted Date @if (sortcolumn == "SubmittedDate") {
+                                <img alt="@sortorder" src="Content/Admin/images/sort_@(sortorder).gif" />
+                                                }
+                            </a>
+                        </th>
+                        <th width="10%" style="">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (lstSubmissions != null && lstSubmissions.Count != 0)
+                    {
+                        int counter = (int)((PageNo - 1) * Items + 1);
+                        foreach (var item in lstSubmissions)
+                        {
+                            var submissionData = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, object>>(item.SubmittedData);
+                            
+                            <tr>
+                                <td style="text-align:center">@counter</td>
+                                <td style="text-align:left">@item.SubmittedBy</td>
+                                
+                                @if (summaryFields != null)
+                                {
+                                    foreach (var field in summaryFields)
+                                    {
+                                        var fieldId = field.Id.ToString();
+                                        var displayValue = "N/A";
+                                        
+                                        if (submissionData != null && submissionData.ContainsKey(fieldId))
+                                        {
+                                            var value = submissionData[fieldId];
+                                            if (value != null)
+                                            {
+                                                if (value is string strValue)
+                                                {
+                                                    if (strValue.Length > 30)
+                                                    {
+                                                        displayValue = strValue.Substring(0, 30) + "...";
+                                                    }
+                                                    else
+                                                    {
+                                                        displayValue = strValue;
+                                                    }
+                                                }
+                                                else if (value is bool boolValue)
+                                                {
+                                                    displayValue = boolValue ? "Yes" : "No";
+                                                }
+                                                else
+                                                {
+                                                    displayValue = value.ToString();
+                                                }
+                                            }
+                                        }
+                                        
+                                        <td style="text-align:left">@displayValue</td>
+                                    }
+                                }
+                                
+                                <td style="">@item.SubmittedDate.ToString("dd/MM/yyyy hh:mm tt")</td>
+                                <td style="text-align:center">
+                                    <div class="table-actions d-flex align-items-center gap-3 fs-6">
+                                        <a class="text-primary cursor-pointer" onclick="viewSubmissionDetail(@item.SubmissionId);" title="View Details">
+                                            <i class="bi bi-eye-fill"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            counter++;
+                        }
+                    }
+                    else
+                    {
+                        <tr><td colspan="@(summaryFields != null ? summaryFields.Count + 4 : 5)" class="text-center">No Records found</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="row pt-3">
+            <div class="col-sm-4 col-md-5">
+                <div class="dataTables_info">
+                    Showing @((PageNo * Items) - (Items - 1)) - @((PageNo * Items) > Total ? Total : (PageNo * Items)) of @Total entries
+                </div>
+            </div>
+            <div class="col-sm-3 col-md-7">
+                <div class="d-flex justify-content-end">
+                    @Html.Raw(ArjunFormBuilder.BLL.Common.SetPaging((Int64)ViewBag.items, ref Total, (Int64)ViewBag.pageno, "pagination pb-0"))
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal fade" id="submissionDetailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Submission Details</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="submissionDetailContent">
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function sortresult(column) {
+        var currentSortColumn = '@ViewBag.sortcolumn';
+        var currentSortOrder = '@ViewBag.sortorder';
+        var formId = @FormId;
+        
+        if (currentSortColumn === column) {
+            var newSortOrder = (currentSortOrder === 'asc') ? 'desc' : 'asc';
+        } else {
+            var newSortOrder = 'asc';
+        }
+        
+        var url = '@Url.Action("FormSubmissions", "Form")' + 
+            '?formId=' + formId +
+            '&SortColumn=' + column +
+            '&SortOrder=' + newSortOrder +
+            '&PageNo=1' +
+            '&Items=@Items';
+        
+        window.location.href = url;
+    }
+
+    function viewSubmissionDetail(submissionId) {
+        $('#submissionDetailContent').html(`
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        `);
+        
+        $('#submissionDetailModal').modal('show');
+        
+        $.ajax({
+            url: '@Url.Action("GetSubmissionDetail", "Form")',
+            type: 'GET',
+            data: { id: submissionId },
+            success: function(response) {
+                if (response.success) {
+                    renderSubmissionDetail(response);
+                } else {
+                    $('#submissionDetailContent').html('<div class="alert alert-danger">Failed to load submission details.</div>');
+                }
+            },
+            error: function() {
+                $('#submissionDetailContent').html('<div class="alert alert-danger">An error occurred.</div>');
+            }
+        });
+    }
+
+   function renderSubmissionDetail(data) {
+
+    var html = `
+        <div class="row mb-3">
+
+            <div class="col-md-6">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">
+                            Submitted By
+                        </h6>
+                        <p class="card-text">
+                            ${data.submittedBy || 'N/A'}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">
+                            Submitted Date
+                        </h6>
+                        <p class="card-text">
+                            ${data.submittedDate || 'N/A'}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    `;
+
+    // ============================
+    // PAYMENT DETAILS
+    // ============================
+
+    var hasPayment =
+        data.paymentStatus ||
+        data.paymentTxnId ||
+        data.paymentGateway ||
+        data.paymentAmount !== null && data.paymentAmount !== undefined ||
+        data.paymentCurrency;
+
+    if (hasPayment) {
+
+        var paymentStatus = data.paymentStatus || 'N/A';
+        var paymentTxnId = data.paymentTxnId || 'N/A';
+        var paymentGateway = data.paymentGateway || 'N/A';
+        var paymentCurrency = data.paymentCurrency || '';
+
+        var paymentAmount =
+            data.paymentAmount !== null &&
+            data.paymentAmount !== undefined
+                ? data.paymentAmount
+                : 'N/A';
+
+        // Format gateway nicely
+        if (paymentGateway !== 'N/A') {
+            paymentGateway =
+                paymentGateway.charAt(0).toUpperCase() +
+                paymentGateway.slice(1);
+        }
+
+        // Status badge
+        var statusClass = 'bg-secondary';
+
+        if (paymentStatus.toLowerCase() === 'completed') {
+            statusClass = 'bg-success';
+        }
+        else if (paymentStatus.toLowerCase() === 'failed') {
+            statusClass = 'bg-danger';
+        }
+        else if (paymentStatus.toLowerCase() === 'pending') {
+            statusClass = 'bg-warning text-dark';
+        }
+
+        html += `
+            <h6 class="mt-4 mb-3">
+                Payment Details
+            </h6>
+
+            <div class="card border-primary shadow-sm mb-4">
+                <div class="card-body">
+
+                    <div class="row mb-3">
+
+                        <div class="col-md-4">
+                            <div class="text-muted small">
+                                Payment Gateway
+                            </div>
+                            <div class="fw-bold">
+                                ${paymentGateway}
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <div class="text-muted small">
+                                Payment Status
+                            </div>
+                            <div>
+                                <span class="badge ${statusClass}">
+                                    ${paymentStatus}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <div class="text-muted small">
+                                Amount
+                            </div>
+                            <div class="fw-bold">
+                                ${paymentCurrency} ${paymentAmount}
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div class="row">
+
+                        <div class="col-md-12">
+                            <div class="text-muted small">
+                                Transaction ID
+                            </div>
+
+                            <div class="fw-bold text-break">
+                                ${paymentTxnId}
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+            </div>
+        `;
+    }
+
+    // ============================
+    // FORM DATA
+    // ============================
+
+    html += `
+        <h6 class="mt-3">
+            Form Data
+        </h6>
+
+        <div class="card">
+            <div class="card-body">
+    `;
+
+    try {
+
+        var formData = JSON.parse(data.data);
+
+        if (typeof formData === 'object' && formData !== null) {
+
+            Object.keys(formData).forEach(function (key) {
+
+                var value = formData[key];
+
+                var displayValue =
+                    value !== null && value !== undefined
+                        ? value
+                        : 'N/A';
+
+                var label =
+                    key.charAt(0).toUpperCase() +
+                    key.slice(1).replace(/_/g, ' ');
+
+                html += `
+                    <div class="row mb-2">
+
+                        <div class="col-md-4 fw-bold">
+                            ${label}
+                        </div>
+
+                        <div class="col-md-8">
+                            ${displayValue}
+                        </div>
+
+                    </div>
+                `;
+            });
+        }
+
+    }
+    catch (e) {
+
+        html += `
+            <pre class="bg-light p-3">
+                ${data.data}
+            </pre>
+        `;
+    }
+
+    html += `
+            </div>
+        </div>
+    `;
+
+    $('#submissionDetailContent').html(html);
+}
+function ExportSubmissionsToExcel() {
+        // Automatically picks up the current Form ID from the ViewBag
+        var formId = @FormId; 
+        
+        // Get search text if a search box exists
+        var searchText = $('#txtsearch').val(); 
+        if (searchText == undefined) {
+            searchText = "";
+        }
+
+        // Call the controller with the exact parameters
+        var url = '@Url.Action("FormSubmissionsExportToExcel", "Form")' + 
+                  '?formId=' + encodeURIComponent(formId) + 
+                  '&search=' + encodeURIComponent(searchText);
+
+        window.location.href = url;
+    }
+</script>

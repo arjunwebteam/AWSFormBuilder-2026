@@ -1,0 +1,2050 @@
+@{
+    ViewBag.Title = "Form Builder";
+
+}
+<script src="Scripts/Admin/formbuilder-designer.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+
+<div class="container-fluid mt-3">
+    <div class="fb-toolbar d-flex justify-content-end">
+        <button class="btn-save-form" onclick="window.location.href='@Url.Action("Index", "Form")'">
+            ← Back to Form List
+        </button>
+    </div>
+
+    <div class="fb-toolbar d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <h4 class="m-0" style="color:#1c2b39; font-weight:700;">Form Builder</h4>
+
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+            <div class="fb-logo-inline d-flex align-items-center gap-2">
+                <label class="m-0 fw-semibold" style="font-size:21px; color:#1c2b39; white-space:nowrap;">Form Logo</label>
+                <input type="file" id="logoFile" class="form-control form-control-sm" accept="image/*" onchange="uploadLogo()" style="width:200px;" />
+                <img id="logoPreview" src="" style="display:none; max-height:38px; border-radius:6px;" />
+            </div>
+
+            <input type="text" id="formTitle" class="form-control fb-title-input" style="width:220px;" placeholder="Form Title" />
+            <button class="btn-design-toggle" onclick="toggleDesignPanel()">🎨 Form Designer</button>
+            <button class="btn-save-form" onclick="saveForm()">Save Form</button>
+        </div>
+    </div>
+    <input type="hidden" id="logoUrl" value="" />
+
+    <div class="fb-wrapper">
+        <div class="fb-palette">
+            <div class="fb-palette-tabs">
+                <div class="fb-palette-tab active" id="paletteTabBtnLabels" onclick="switchPaletteTab('labels')">Labels</div>
+                <div class="fb-palette-tab" id="paletteTabBtnPayments" onclick="switchPaletteTab('payments')">Payments</div>
+            </div>
+
+            <div id="paletteTabLabels">
+                <div id="paletteList">
+                    <div class="fb-field-type" data-type="heading">🏷️ Heading</div>
+                    <div class="fb-field-type" data-type="firstname">👤 First Name</div>
+                    <div class="fb-field-type" data-type="lastname">👤 Last Name</div>
+                    <div class="fb-field-type" data-type="email">✉️ Email</div>
+                    <div class="fb-field-type" data-type="address">📍 Address</div>
+                    <div class="fb-field-type" data-type="phone">📞 Phone</div>
+                    <div class="fb-field-type" data-type="date">📅 Date Picker</div>
+                    <div class="fb-field-type" data-type="appointment">🗓️ Appointment</div>
+                    <div class="fb-field-type" data-type="signature">✍️ Signature</div>
+                    <div class="fb-field-type" data-type="fillblank">▭ Fill in the Blank</div>
+                    <div class="fb-field-type" data-type="productlist">🛒 Product List</div>
+                    <div class="fb-field-type" data-type="text">🔤 Short Text</div>
+                    <div class="fb-field-type" data-type="textarea">📝 Long Text</div>
+                    <div class="fb-field-type" data-type="paragraph">¶ Paragraph</div>
+                    <div class="fb-field-type" data-type="dropdown">▼ Dropdown</div>
+                    <div class="fb-field-type" data-type="radio">◉ Single Choice</div>
+                    <div class="fb-field-type" data-type="checkbox">☑ Multiple Choice</div>
+                    <div class="fb-field-type" data-type="number">🔢 Number</div>
+                    <div class="fb-field-type" data-type="image">🖼️ Image</div>
+                    <div class="fb-field-type" data-type="fileupload">📎 File Upload</div>
+                    <div class="fb-field-type" data-type="time">🕐 Time</div>
+                    <div class="fb-field-type" data-type="terms">📋 Terms & Conditions</div>
+                    <div class="fb-field-type" data-type="captcha">🤖 Captcha</div>
+                    <div class="fb-field-type" data-type="starrating">⭐ Star Rating</div>
+                </div>
+            </div>
+
+            <div id="paletteTabPayments" style="display:none;">
+                <div id="paymentPaletteList">
+                    <div class="fb-field-type" data-type="payment" data-gateway="paypal">🅿️ PayPal</div>
+                    <div class="fb-field-type" data-type="payment" data-gateway="stripe">💳 Stripe</div>
+                    <div class="fb-field-type" data-type="payment" data-gateway="square">⬛ Square</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="fb-canvas" id="canvas">
+            <!-- Live logo preview banner -->
+            <div id="canvasLogoBanner" class="fb-canvas-logo-banner" style="display:none;" onclick="selectLogo()">
+                <img id="canvasLogoImg" src="" alt="Form Logo" />
+            </div>
+            <div class="fb-empty-hint" id="emptyHint">Drag fields here to build your form</div>
+            <!-- ✅ Submit button is now draggable and deletable -->
+            <div class="fb-canvas-submit" id="canvasSubmitWrapper" data-type="submit">
+                <button type="button" class="fb-submit-btn">Submit</button>
+                <div class="fb-side-icons">
+                    <button type="button" class="fb-icon-btn fb-icon-delete" onclick="deleteSubmitButton(event)" title="Delete Submit">🗑</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="fb-props" id="fbPropsPanel">
+            <div class="fb-props-header d-flex justify-content-between align-items-center">
+                <h6 class="m-0" id="propsPanelTitle">Field Properties</h6>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="closeDesignBtn" style="display:none;" onclick="closeDesignPanel()">✕ Close</button>
+            </div>
+            <div id="propsPanel">
+                <p class="text-muted small">Select a field to edit</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script>
+    let formFields = [];
+    let selectedFieldId = null;
+    let fieldCounter = 0;
+    let submitSelected = false;
+
+    // Carries the current form's ID so Save knows update vs insert
+    let currentFormId = @ViewBag.FormId;
+
+    // Logo size state
+    let logoWidth = null;
+    let logoHeight = 110;
+
+    // ===================== FORM DESIGNER STATE =====================
+    let designPanelOpen = false;
+    let designSubTab = 'colors';
+
+    let formDesign = {
+        colorSchemeId: null,
+        themeId: null,
+        pageColor: '#eef1f5',
+        pageImageUrl: '',
+        formColor: '#ffffff',
+        formImageUrl: '',
+        fontColor: '#33475b',
+        inputBackground: '#ffffff',
+        formWidth: null,
+        labelAlignment: 'top',
+        questionSpacing: 12,
+        fontFamily: 'Inter',
+        fontSize: 14,
+        buttonStyleId: 'flat-blue',
+        buttonCss: 'background:#4a7cf6;color:#fff;',
+        logoBgColor: '',
+        logoAlignment: 'center',
+        logoAltText: ''
+    };
+
+    // Button style presets
+    const buttonStylePresets = [
+        { id: 'flat-blue', category: 'flat', css: 'background:#4a7cf6;color:#fff;' },
+        { id: 'flat-green', category: 'flat', css: 'background:#28a745;color:#fff;' },
+        { id: 'flat-red', category: 'flat', css: 'background:#e0455c;color:#fff;' },
+        { id: 'flat-orange', category: 'flat', css: 'background:#ff7a1a;color:#fff;' },
+        { id: 'flat-dark', category: 'flat', css: 'background:#1e2635;color:#fff;' },
+        { id: 'flat-purple', category: 'flat', css: 'background:#8a4fe0;color:#fff;' },
+        { id: 'gradient-blue', category: 'gradient', css: 'background:linear-gradient(135deg,#4a7cf6,#8a4fe0);color:#fff;' },
+        { id: 'gradient-sunset', category: 'gradient', css: 'background:linear-gradient(135deg,#ff7a1a,#e0455c);color:#fff;' },
+        { id: 'gradient-green', category: 'gradient', css: 'background:linear-gradient(135deg,#28a745,#17a2b8);color:#fff;' },
+        { id: 'outline-blue', category: 'flat', css: 'background:#fff;color:#4a7cf6;border:2px solid #4a7cf6;' },
+        { id: 'outline-dark', category: 'flat', css: 'background:#fff;color:#1e2635;border:2px solid #1e2635;' },
+        { id: 'gradient-purple', category: 'gradient', css: 'background:linear-gradient(135deg,#8a4fe0,#e0455c);color:#fff;' }
+    ];
+    let buttonStyleTab = 'all';
+
+    // One-click color scheme presets
+    const colorSchemes = [
+        { id: 'blue', page: '#eef1f5', form: '#ffffff', font: '#1c2b39', accent: '#4a7cf6' },
+        { id: 'orange', page: '#fff7ef', form: '#ffffff', font: '#5a3b1c', accent: '#ff7a1a' },
+        { id: 'green', page: '#eefaf1', form: '#ffffff', font: '#173a25', accent: '#28a745' },
+        { id: 'purple', page: '#f5f0fb', form: '#ffffff', font: '#2e1c4a', accent: '#8a4fe0' },
+        { id: 'red', page: '#fdeef0', form: '#ffffff', font: '#4a1620', accent: '#e0455c' },
+        { id: 'teal', page: '#e9f7f7', form: '#ffffff', font: '#123a3a', accent: '#17a2b8' },
+        { id: 'dark', page: '#1b2330', form: '#2b3648', font: '#f1f4f9', accent: '#4a7cf6' },
+        { id: 'mono', page: '#f4f4f4', form: '#ffffff', font: '#222222', accent: '#333333' }
+    ];
+
+    // Full theme presets
+    const themePresets = [
+        { id: 'default', name: 'Default', page: '#eef1f5', form: '#ffffff', font: '#33475b', input: '#ffffff' },
+        { id: 'ocean', name: 'Ocean Mist', page: '#e7f3fb', form: '#ffffff', font: '#123a52', input: '#f4fbff' },
+        { id: 'sunset', name: 'Sunset', page: '#fff1e6', form: '#fffaf5', font: '#5a2d0c', input: '#fff7f0' },
+        { id: 'forest', name: 'Forest', page: '#eaf5ec', form: '#ffffff', font: '#173a25', input: '#f3fbf4' },
+        { id: 'lavender', name: 'Lavender', page: '#f3effb', form: '#ffffff', font: '#2e1c4a', input: '#f9f6fd' },
+        { id: 'midnight', name: 'Midnight', page: '#171d29', form: '#232c3d', font: '#eef1f5', input: '#2c3648' },
+        { id: 'graphite', name: 'Graphite', page: '#eceff1', form: '#ffffff', font: '#263238', input: '#f5f6f7' },
+        { id: 'rose', name: 'Rose', page: '#fdeef1', form: '#fffbfc', font: '#4a1620', input: '#fff4f6' }
+    ];
+
+    // Display info for each payment gateway
+    const gatewayInfo = {
+        paypal: { label: 'PayPal', icon: '🅿️', color: '#003087' },
+        stripe: { label: 'Stripe', icon: '💳', color: '#635bff' },
+        square: { label: 'Square', icon: '⬛', color: '#1c1c1c' }
+    };
+
+    const fieldLabels = {
+        heading: "Section Heading",
+        fullname: "Full Name",
+        firstname: "First Name",
+        lastname: "Last Name",
+        email: "Email",
+        address: "Address",
+        phone: "Phone Number",
+        date: "Date",
+        appointment: "Appointment",
+        signature: "Signature",
+        fillblank: "Fill in the blank",
+        productlist: "Product",
+        text: "Text Field",
+        textarea: "Long Text",
+        paragraph: "Paragraph text goes here...",
+        dropdown: "Dropdown",
+        radio: "Single Choice",
+        checkbox: "Multiple Choice",
+        number: "Number",
+        image: "Image",
+        fileupload: "Upload File",
+        time: "Time",
+        terms: "I agree to the Terms & Conditions",
+        captcha: "Please verify that you are human",
+        starrating: "Rate this",
+        payment: "Payment"
+    };
+
+    applyDesignToCanvas();
+
+    // ============================================================
+    // SORTABLE INITIALIZATION
+    // ============================================================
+    new Sortable(document.getElementById('paletteList'), {
+        group: { name: 'shared', pull: 'clone', put: false },
+        sort: false,
+        animation: 150
+    });
+
+    new Sortable(document.getElementById('paymentPaletteList'), {
+        group: { name: 'shared', pull: 'clone', put: false },
+        sort: false,
+        animation: 150
+    });
+
+    // ✅ Canvas sortable includes the submit button as draggable
+    const canvasSortable = new Sortable(document.getElementById('canvas'), {
+        group: 'shared',
+        animation: 150,
+        draggable: '.fb-canvas-item, .fb-canvas-submit',
+        onAdd: function (evt) {
+            const type = evt.item.getAttribute('data-type');
+            const gateway = evt.item.getAttribute('data-gateway');
+            // Check if it's a submit button being dropped from somewhere - ignore, it's already there
+            if (type === 'submit') {
+                evt.item.remove();
+                return;
+            }
+            evt.item.remove();
+            addField(type, evt.newIndex, gateway);
+        },
+        onUpdate: function () {
+            syncOrderFromDOM();
+        }
+    });
+
+    // ============================================================
+    // LOGO FUNCTIONS
+    // ============================================================
+    function uploadLogo() {
+        const fileInput = document.getElementById('logoFile');
+        if (!fileInput.files.length) return;
+
+        const formData = new FormData();
+        formData.append('logo', fileInput.files[0]);
+
+        fetch('/Admin/Form/UploadFormLogo', { method: 'POST', body: formData })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('logoUrl').value = data.url;
+                    updateLogoPreview(data.url);
+                } else {
+                    alert('Logo upload failed: ' + data.message);
+                }
+            })
+            .catch(err => alert('Upload error: ' + err));
+    }
+
+    function uploadTermsPdf(fieldId) {
+        const fileInput = document.getElementById('termsPdfFile_' + fieldId);
+        if (!fileInput.files.length) return;
+
+        const file = fileInput.files[0];
+        if (file.type !== 'application/pdf') {
+            alert('Please select a PDF file.');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('termsPdf', file);
+
+        fetch('/Admin/Form/UploadFormTermsPdf', { method: 'POST', body: formData })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    updateField(fieldId, 'termsPdfUrl', data.url);
+                    renderProps();
+                } else {
+                    alert('PDF upload failed: ' + data.message);
+                }
+            })
+            .catch(err => alert('Upload error: ' + err));
+    }
+
+    function updateLogoPreview(url) {
+        const preview = document.getElementById('logoPreview');
+        preview.src = url;
+        preview.style.display = 'inline-block';
+
+        const banner = document.getElementById('canvasLogoBanner');
+        const bannerImg = document.getElementById('canvasLogoImg');
+        bannerImg.src = url;
+        banner.style.display = 'block';
+        applyLogoSize();
+    }
+
+    function selectLogo() {
+        selectedFieldId = null;
+        submitSelected = false;
+        designPanelOpen = false;
+        document.getElementById('closeDesignBtn').style.display = 'none';
+        document.getElementById('propsPanelTitle').textContent = 'Field Properties';
+        document.getElementById('fbPropsPanel').classList.remove('fb-props-dark');
+        document.getElementById('canvasLogoBanner').classList.add('selected');
+        document.querySelector('.fb-canvas-submit')?.classList.remove('selected');
+        renderCanvas();
+        renderLogoProps();
+    }
+
+    function renderLogoProps() {
+        const panel = document.getElementById('propsPanel');
+        panel.innerHTML = `
+            <label class="form-label">Logo Height (px)</label>
+            <input type="number" class="form-control mb-2" min="20" max="300" value="${logoHeight}" onchange="updateLogoSize('height', this.value)" />
+
+            <label class="form-label">Logo Width (px)</label>
+            <input type="number" class="form-control mb-2" min="20" max="600" placeholder="Auto" value="${logoWidth ?? ''}" onchange="updateLogoSize('width', this.value)" />
+
+            <label class="form-label">Logo Size</label>
+            <input type="range" class="form-range mb-2" min="40" max="300" value="${logoHeight}" oninput="updateLogoSize('height', this.value); renderLogoProps();" />
+
+            <label class="form-label">Background Color</label>
+            <div class="d-flex gap-2 mb-2">
+                <input type="color" class="form-control form-control-color" style="width:48px;" value="${formDesign.logoBgColor || '#ffffff'}" onchange="updateLogoStyle('logoBgColor', this.value)" />
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="updateLogoStyle('logoBgColor','')">Clear Background</button>
+            </div>
+
+            <label class="form-label">Alignment</label>
+            <div class="fb-align-group">
+                <div class="fb-align-btn ${formDesign.logoAlignment === 'left' ? 'active' : ''}" onclick="updateLogoStyle('logoAlignment','left')">Left</div>
+                <div class="fb-align-btn ${formDesign.logoAlignment === 'center' || !formDesign.logoAlignment ? 'active' : ''}" onclick="updateLogoStyle('logoAlignment','center')">Center</div>
+                <div class="fb-align-btn ${formDesign.logoAlignment === 'right' ? 'active' : ''}" onclick="updateLogoStyle('logoAlignment','right')">Right</div>
+            </div>
+
+            <label class="form-label">Logo Alt Text</label>
+            <input type="text" class="form-control mb-2" placeholder="Describe the logo" value="${formDesign.logoAltText || ''}" onchange="updateLogoStyle('logoAltText', this.value)" />
+
+            <button type="button" class="btn btn-sm btn-outline-secondary w-100 mt-1" onclick="resetLogoSize()">Reset to Default</button>
+        `;
+    }
+
+    function updateLogoStyle(key, value) {
+        formDesign[key] = value;
+        applyLogoSize();
+        if (key === 'logoAltText') document.getElementById('canvasLogoImg').alt = value;
+        renderLogoProps();
+    }
+
+    function updateLogoSize(dimension, value) {
+        if (dimension === 'height') {
+            logoHeight = value ? parseInt(value) : 110;
+        } else {
+            logoWidth = value ? parseInt(value) : null;
+        }
+        applyLogoSize();
+    }
+
+    function resetLogoSize() {
+        logoWidth = null;
+        logoHeight = 110;
+        applyLogoSize();
+        renderLogoProps();
+    }
+
+    function applyLogoSize() {
+        const img = document.getElementById('canvasLogoImg');
+        img.style.maxHeight = 'none';
+        img.style.height = logoHeight + 'px';
+        img.style.width = logoWidth ? logoWidth + 'px' : 'auto';
+
+        const banner = document.getElementById('canvasLogoBanner');
+        banner.style.background = formDesign.logoBgColor || 'transparent';
+        banner.style.textAlign = formDesign.logoAlignment || 'center';
+        if (formDesign.logoAltText) img.alt = formDesign.logoAltText;
+    }
+
+    // ============================================================
+    // SUBMIT BUTTON FUNCTIONS
+    // ============================================================
+    function selectSubmitButton() {
+        selectedFieldId = null;
+        submitSelected = true;
+        designPanelOpen = false;
+        document.getElementById('closeDesignBtn').style.display = 'none';
+        document.getElementById('propsPanelTitle').textContent = 'Submit Button';
+        document.getElementById('fbPropsPanel').classList.remove('fb-props-dark');
+        document.getElementById('canvasLogoBanner').classList.remove('selected');
+        document.querySelectorAll('.fb-canvas-item').forEach(el => el.classList.remove('selected'));
+        document.querySelector('.fb-canvas-submit')?.classList.add('selected');
+        renderCanvas();
+        renderSubmitProps();
+    }
+
+    function deleteSubmitButton(event) {
+        event.stopPropagation();
+        if (confirm('Delete Submit button? You can always drag it back from the palette.')) {
+            const wrapper = document.getElementById('canvasSubmitWrapper');
+            if (wrapper) wrapper.remove();
+            // Also remove it from sortable
+            canvasSortable.remove(wrapper);
+            submitSelected = false;
+            document.getElementById('propsPanel').innerHTML = '<p class="text-muted small">Submit button removed. Drag a new one from the palette.</p>';
+        }
+    }
+
+    function renderSubmitProps() {
+        const panel = document.getElementById('propsPanel');
+        panel.innerHTML = `
+            <p class="text-muted small">Submit button can be dragged to any position in the form.</p>
+            <div class="mt-3">
+                <label class="form-label">Button Text</label>
+                <input type="text" class="form-control" value="Submit" onchange="updateSubmitText(this.value)" />
+            </div>
+            <div class="mt-3">
+                <label class="form-label">Button Style (via Form Designer)</label>
+                <p class="text-muted small">Go to Form Designer → Styles → Button Style to customize.</p>
+            </div>
+            <button type="button" class="btn btn-sm btn-danger w-100 mt-3" onclick="deleteSubmitButton(event)">🗑 Delete Submit Button</button>
+        `;
+    }
+
+    function updateSubmitText(text) {
+        const btn = document.querySelector('.fb-submit-btn');
+        if (btn) btn.textContent = text || 'Submit';
+    }
+
+    // ============================================================
+    // FORM DESIGNER FUNCTIONS
+    // ============================================================
+    function toggleDesignPanel() {
+        designPanelOpen ? closeDesignPanel() : openDesignPanel();
+    }
+
+    function openDesignPanel() {
+        designPanelOpen = true;
+        selectedFieldId = null;
+        submitSelected = false;
+        document.getElementById('canvasLogoBanner').classList.remove('selected');
+        document.querySelector('.fb-canvas-submit')?.classList.remove('selected');
+        document.getElementById('fbPropsPanel').classList.add('fb-props-dark');
+        renderCanvas();
+        renderDesignPanel();
+    }
+
+    function closeDesignPanel() {
+        designPanelOpen = false;
+        document.getElementById('closeDesignBtn').style.display = 'none';
+        document.getElementById('propsPanelTitle').textContent = 'Field Properties';
+        document.getElementById('fbPropsPanel').classList.remove('fb-props-dark');
+        renderProps();
+    }
+
+    function switchDesignTab(tab) {
+        designSubTab = tab;
+        renderDesignPanel();
+    }
+
+    function renderDesignPanel() {
+        document.getElementById('propsPanelTitle').textContent = '🎨 Form Designer';
+        document.getElementById('closeDesignBtn').style.display = 'inline-block';
+        const panel = document.getElementById('propsPanel');
+
+        const schemesHtml = colorSchemes.map(s => `
+            <div class="fb-scheme-swatch ${formDesign.colorSchemeId === s.id ? 'active' : ''}" style="background:${s.page};" title="${s.id}" onclick="applyColorScheme('${s.id}')">
+                <span style="background:${s.accent};"></span>
+            </div>
+        `).join('');
+
+        const themesHtml = themePresets.map(t => `
+            <div class="fb-theme-card ${formDesign.themeId === t.id ? 'active' : ''}" onclick="applyTheme('${t.id}')">
+                <div class="fb-theme-thumb" style="background:${t.page};">
+                    <div class="fb-theme-thumb-card" style="background:${t.form};">
+                        <span style="background:${t.font}; width:70%;"></span>
+                        <span style="background:${t.font}; width:45%;"></span>
+                    </div>
+                </div>
+                <div class="fb-theme-name">${t.name}</div>
+            </div>
+        `).join('');
+
+        const btnStylesHtml = buttonStylePresets
+            .filter(b => buttonStyleTab === 'all' || b.category === buttonStyleTab)
+            .map(b => `<div class="fb-btnstyle-swatch ${formDesign.buttonStyleId === b.id ? 'active' : ''}" style="${b.css}" onclick="applyButtonStyle('${b.id}')">Submit</div>`)
+            .join('');
+
+        panel.innerHTML = `
+            <div class="fb-design-tabs">
+                <div class="fb-design-tab ${designSubTab === 'colors' ? 'active' : ''}" onclick="switchDesignTab('colors')">Colors</div>
+                <div class="fb-design-tab ${designSubTab === 'styles' ? 'active' : ''}" onclick="switchDesignTab('styles')">Styles</div>
+                <div class="fb-design-tab ${designSubTab === 'themes' ? 'active' : ''}" onclick="switchDesignTab('themes')">Themes</div>
+                <div class="fb-design-tab ${designSubTab === 'layout' ? 'active' : ''}" onclick="switchDesignTab('layout')">Layout</div>
+            </div>
+            ${designSubTab === 'styles' ? `
+                <label class="form-label">Label Alignment</label>
+                <select class="form-select mb-3" onchange="updateDesign('labelAlignment', this.value); applyDesignToCanvas();">
+                    <option value="top" ${formDesign.labelAlignment === 'top' ? 'selected' : ''}>Top</option>
+                    <option value="left" ${formDesign.labelAlignment === 'left' ? 'selected' : ''}>Left</option>
+                    <option value="right" ${formDesign.labelAlignment === 'right' ? 'selected' : ''}>Right</option>
+                </select>
+
+                <label class="form-label">Font</label>
+                <select class="form-select mb-3" onchange="updateDesign('fontFamily', this.value); applyDesignToCanvas();">
+                    ${['Inter','Arial','Georgia','Verdana','Alberta Stencil','Roboto','Poppins'].map(f => `<option value="${f}" ${formDesign.fontFamily === f ? 'selected' : ''}>${f}</option>`).join('')}
+                </select>
+
+                <label class="form-label">Font Size (px)</label>
+                <input type="number" class="form-control mb-3" min="10" max="28" value="${formDesign.fontSize}" onchange="updateDesign('fontSize', parseInt(this.value)); applyDesignToCanvas();" />
+
+                <label class="form-label">Button Style</label>
+                <div class="fb-btnstyle-tabs">
+                    <div class="fb-btnstyle-tab ${buttonStyleTab === 'all' ? 'active' : ''}" onclick="switchButtonStyleTab('all')">All</div>
+                    <div class="fb-btnstyle-tab ${buttonStyleTab === 'flat' ? 'active' : ''}" onclick="switchButtonStyleTab('flat')">Flat</div>
+                    <div class="fb-btnstyle-tab ${buttonStyleTab === 'gradient' ? 'active' : ''}" onclick="switchButtonStyleTab('gradient')">Gradient</div>
+                </div>
+                <div class="fb-btnstyle-grid">${btnStylesHtml}</div>
+            ` : designSubTab === 'layout' ? `
+                <label class="form-label">Form Width (px)</label>
+                <input type="number" class="form-control mb-2" min="300" max="1400" placeholder="Auto (100%)" value="${formDesign.formWidth || ''}" onchange="updateDesign('formWidth', this.value ? parseInt(this.value) : null); applyDesignToCanvas();" />
+                <p class="text-muted small mb-3">Resize form width. Leave blank for full width.</p>
+
+                <label class="form-label">Question Spacing (px)</label>
+                <input type="number" class="form-control mb-2" min="4" max="60" value="${formDesign.questionSpacing}" onchange="updateDesign('questionSpacing', parseInt(this.value)); applyDesignToCanvas();" />
+                <p class="text-muted small">Distance between questions.</p>
+            ` : designSubTab === 'colors' ? `
+                <label class="form-label">Color Scheme</label>
+                <div class="fb-scheme-row">${schemesHtml}</div>
+
+                <label class="form-label mt-3">Page Color</label>
+                <div class="d-flex gap-2 align-items-center mb-2">
+                    <input type="color" class="form-control form-control-color" style="width:44px;" value="${formDesign.pageColor}" onchange="updateDesign('pageColor', this.value)" />
+                    <input type="text" class="form-control form-control-sm" value="${formDesign.pageColor}" onchange="updateDesign('pageColor', this.value)" />
+                </div>
+
+                <label class="form-label">Page Image</label>
+                <div class="d-flex gap-2 align-items-center mb-1">
+                    <input type="file" class="form-control form-control-sm" accept="image/*" onchange="uploadDesignImage(this, 'pageImageUrl')" />
+                    ${formDesign.pageImageUrl ? `<button type="button" class="btn btn-sm btn-outline-secondary" onclick="updateDesign('pageImageUrl','')">Clear</button>` : ''}
+                </div>
+                ${formDesign.pageImageUrl ? `<img src="${formDesign.pageImageUrl}" style="max-height:46px; border-radius:6px; margin-bottom:10px; display:block;" />` : ''}
+
+                <label class="form-label mt-2">Form Color</label>
+                <div class="d-flex gap-2 align-items-center mb-2">
+                    <input type="color" class="form-control form-control-color" style="width:44px;" value="${formDesign.formColor}" onchange="updateDesign('formColor', this.value)" />
+                    <input type="text" class="form-control form-control-sm" value="${formDesign.formColor}" onchange="updateDesign('formColor', this.value)" />
+                </div>
+
+                <label class="form-label">Form Image</label>
+                <div class="d-flex gap-2 align-items-center mb-1">
+                    <input type="file" class="form-control form-control-sm" accept="image/*" onchange="uploadDesignImage(this, 'formImageUrl')" />
+                    ${formDesign.formImageUrl ? `<button type="button" class="btn btn-sm btn-outline-secondary" onclick="updateDesign('formImageUrl','')">Clear</button>` : ''}
+                </div>
+                ${formDesign.formImageUrl ? `<img src="${formDesign.formImageUrl}" style="max-height:46px; border-radius:6px; margin-bottom:6px; display:block;" />` : ''}
+                <p class="text-muted small mb-2">Change form background image</p>
+
+                <label class="form-label mt-2">Font Color</label>
+                <div class="d-flex gap-2 align-items-center mb-1">
+                    <input type="color" class="form-control form-control-color" style="width:44px;" value="${formDesign.fontColor}" onchange="updateDesign('fontColor', this.value)" />
+                    <input type="text" class="form-control form-control-sm" value="${formDesign.fontColor}" onchange="updateDesign('fontColor', this.value)" />
+                </div>
+                <p class="text-muted small mb-2">Change font color</p>
+
+                <label class="form-label">Input Background</label>
+                <div class="d-flex gap-2 align-items-center mb-2">
+                    <input type="color" class="form-control form-control-color" style="width:44px;" value="${formDesign.inputBackground}" onchange="updateDesign('inputBackground', this.value)" />
+                    <input type="text" class="form-control form-control-sm" value="${formDesign.inputBackground}" onchange="updateDesign('inputBackground', this.value)" />
+                </div>
+
+                <button type="button" class="btn btn-sm btn-outline-danger w-100 mt-2" onclick="resetDesign()">Reset to Default</button>
+            ` : `
+                <p class="text-muted small mb-2">All Themes — pick one to set page, form, font & input colors together.</p>
+                <div class="fb-theme-grid">${themesHtml}</div>
+            `}
+        `;
+    }
+
+    const colorKeys = ['pageColor', 'formColor', 'fontColor', 'inputBackground', 'pageImageUrl', 'formImageUrl'];
+    function updateDesign(key, value) {
+        formDesign[key] = value;
+        if (colorKeys.includes(key)) {
+            formDesign.colorSchemeId = null;
+            formDesign.themeId = null;
+        }
+        applyDesignToCanvas();
+        if (designPanelOpen) renderDesignPanel();
+    }
+
+    function applyColorScheme(id) {
+        const s = colorSchemes.find(x => x.id === id);
+        if (!s) return;
+        formDesign.colorSchemeId = id;
+        formDesign.themeId = null;
+        formDesign.pageColor = s.page;
+        formDesign.formColor = s.form;
+        formDesign.fontColor = s.font;
+        formDesign.inputBackground = s.form;
+        applyDesignToCanvas();
+        renderDesignPanel();
+    }
+
+    function applyTheme(id) {
+        const t = themePresets.find(x => x.id === id);
+        if (!t) return;
+        formDesign.themeId = id;
+        formDesign.colorSchemeId = null;
+        formDesign.pageColor = t.page;
+        formDesign.formColor = t.form;
+        formDesign.fontColor = t.font;
+        formDesign.inputBackground = t.input;
+        formDesign.pageImageUrl = '';
+        formDesign.formImageUrl = '';
+        applyDesignToCanvas();
+        renderDesignPanel();
+    }
+
+    function resetDesign() {
+        formDesign = {
+            colorSchemeId: null, themeId: null, pageColor: '#eef1f5', pageImageUrl: '', formColor: '#ffffff',
+            formImageUrl: '', fontColor: '#33475b', inputBackground: '#ffffff',
+            formWidth: null, labelAlignment: 'top', questionSpacing: 12, fontFamily: 'Inter', fontSize: 14,
+            buttonStyleId: 'flat-blue', buttonCss: 'background:#4a7cf6;color:#fff;',
+            logoBgColor: '', logoAlignment: 'center', logoAltText: ''
+        };
+        applyDesignToCanvas();
+        renderDesignPanel();
+    }
+
+    function switchButtonStyleTab(tab) {
+        buttonStyleTab = tab;
+        renderDesignPanel();
+    }
+
+    function applyButtonStyle(id) {
+        const b = buttonStylePresets.find(x => x.id === id);
+        if (!b) return;
+        formDesign.buttonStyleId = id;
+        formDesign.buttonCss = b.css;
+        renderDesignPanel();
+        applyDesignToCanvas();
+    }
+
+    function uploadDesignImage(input, targetKey) {
+        if (!input.files.length) return;
+        const formData = new FormData();
+        formData.append('logo', input.files[0]);
+
+        fetch('/Admin/Form/UploadFormLogo', { method: 'POST', body: formData })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    updateDesign(targetKey, data.url);
+                } else {
+                    alert('Image upload failed: ' + data.message);
+                }
+            })
+            .catch(err => alert('Upload error: ' + err));
+    }
+
+    // ============================================================
+    // APPLY DESIGN TO CANVAS
+    // ============================================================
+    function applyDesignToCanvas() {
+        const canvasEl = document.getElementById('canvas');
+        if (!canvasEl) return;
+
+        canvasEl.style.background = formDesign.formColor || '#ffffff';
+        if (formDesign.formImageUrl) {
+            canvasEl.style.backgroundImage = `url('${formDesign.formImageUrl}')`;
+            canvasEl.style.backgroundSize = 'cover';
+            canvasEl.style.backgroundPosition = 'center';
+        } else {
+            canvasEl.style.backgroundImage = 'none';
+        }
+
+        document.body.style.background = formDesign.pageImageUrl
+            ? `url('${formDesign.pageImageUrl}') center / cover no-repeat fixed`
+            : (formDesign.pageColor || '#eef1f5');
+
+        canvasEl.querySelectorAll('.fb-canvas-item label').forEach(l => l.style.color = formDesign.fontColor || '#1c2b39');
+        canvasEl.querySelectorAll('.fb-preview-input').forEach(i => i.style.background = formDesign.inputBackground || '#ffffff');
+
+        canvasEl.style.maxWidth = formDesign.formWidth ? formDesign.formWidth + 'px' : '100%';
+        canvasEl.style.marginLeft = formDesign.formWidth ? 'auto' : '0';
+        canvasEl.style.marginRight = formDesign.formWidth ? 'auto' : '0';
+        canvasEl.style.gap = (formDesign.questionSpacing != null ? formDesign.questionSpacing : 14) + 'px';
+
+        // Apply to submit button
+        const submitBtn = document.querySelector('.fb-submit-btn');
+        if (submitBtn) {
+            submitBtn.style.cssText = (formDesign.buttonCss || 'background:#4a7cf6;color:#fff;') + 'border:none; border-radius:8px; padding:10px 28px; font-weight:700; cursor:grab; pointer-events:none;';
+        }
+
+        canvasEl.style.fontFamily = formDesign.fontFamily || 'Inter';
+        canvasEl.querySelectorAll('.fb-canvas-item label, .fb-preview-input').forEach(el => {
+            el.style.fontFamily = formDesign.fontFamily || 'Inter';
+            el.style.fontSize = (formDesign.fontSize || 14) + 'px';
+        });
+
+        canvasEl.querySelectorAll('.fb-canvas-item:not(.fb-heading-item)').forEach(item => {
+            if (formDesign.labelAlignment === 'left' || formDesign.labelAlignment === 'right') {
+                item.style.display = 'flex';
+                item.style.flexDirection = formDesign.labelAlignment === 'right' ? 'row-reverse' : 'row';
+                item.style.alignItems = 'flex-start';
+                item.style.gap = '10px';
+                const lbl = item.querySelector('label');
+                if (lbl) { lbl.style.flex = '0 0 140px'; lbl.style.marginBottom = '0'; }
+            } else {
+                item.style.display = 'block';
+                const lbl = item.querySelector('label');
+                if (lbl) { lbl.style.marginBottom = '6px'; }
+            }
+        });
+    }
+
+    // ============================================================
+    // PALETTE TAB SWITCHING
+    // ============================================================
+    function switchPaletteTab(tab) {
+        const showLabels = tab === 'labels';
+        document.getElementById('paletteTabLabels').style.display = showLabels ? 'block' : 'none';
+        document.getElementById('paletteTabPayments').style.display = showLabels ? 'none' : 'block';
+        document.getElementById('paletteTabBtnLabels').classList.toggle('active', showLabels);
+        document.getElementById('paletteTabBtnPayments').classList.toggle('active', !showLabels);
+    }
+
+    // ============================================================
+    // FIELD FUNCTIONS
+    // ============================================================
+    function addField(type, index, gateway) {
+        if (type === 'payment' && formFields.some(f => f.type === 'payment')) {
+            alert('Only one Payment field is allowed per form.');
+            return;
+        }
+
+        if (type === 'captcha' && formFields.some(f => f.type === 'captcha')) {
+            alert('Only one Captcha field is allowed per form.');
+            return;
+        }
+
+        fieldCounter++;
+        const field = {
+            id: 'f' + fieldCounter,
+            type: type,
+            label: fieldLabels[type],
+            placeholder: (type === 'firstname') ? 'First Name' : (type === 'lastname') ? 'Last Name' : '',
+            required: false,
+            width: 'full',
+            options: (type === 'dropdown' || type === 'radio' || type === 'checkbox') ? ['Option 1', 'Option 2'] : [],
+            maxStars: 5,
+            firstNameLabel: 'First Name',
+            lastNameLabel: 'Last Name',
+            headingBgColor: '',
+            headingTextColor: '#1c2b39',
+            gateway: gateway || 'paypal',
+            amountType: 'fixed',
+            amount: 0,
+            currency: 'USD',
+            publicKey: '',
+            gatewayMode: 'sandbox',
+            // Captcha
+            captchaType: 'hcaptcha',
+            captchaSiteKey: '',
+            labelAlignment: 'top',
+            // Terms & Conditions
+            termsDocType: 'link',   // 'link' | 'pdf'
+            termsLinkUrl: '',
+            termsPdfUrl: ''
+        };
+        if (type === 'payment') field.label = 'Payment';
+
+        formFields.splice(index, 0, field);
+        renderCanvas();
+        selectField(field.id);
+    }
+
+    function renderCanvas() {
+        const canvas = document.getElementById('canvas');
+        // Remove all field items but keep logo banner, empty hint, and submit button
+        const itemsToKeep = ['canvasLogoBanner', 'emptyHint', 'canvasSubmitWrapper'];
+        canvas.querySelectorAll('.fb-canvas-item').forEach(el => el.remove());
+
+        document.getElementById('emptyHint').style.display = formFields.length ? 'none' : 'block';
+
+        // Insert fields before the submit button
+        const submitWrapper = document.getElementById('canvasSubmitWrapper');
+        let insertBefore = submitWrapper;
+
+        formFields.forEach(field => {
+            const div = document.createElement('div');
+            div.className = 'fb-canvas-item'
+                + (field.id === selectedFieldId ? ' selected' : '')
+                + (field.width === 'half' ? ' fb-width-half' : '');
+            div.setAttribute('data-id', field.id);
+            div.onclick = () => selectField(field.id);
+
+            if (field.type === 'heading') {
+                div.classList.add('fb-heading-item');
+                const bg = field.headingBgColor ? field.headingBgColor : 'transparent';
+                const fg = field.headingTextColor || '#1c2b39';
+                div.innerHTML = `
+                    <div class="fb-heading-section" style="background-color:${bg};">
+                        <h5 class="mb-0" style="color:${fg};">${field.label}</h5>
+                        <div class="fb-side-icons">
+                            <button type="button" class="fb-icon-btn fb-icon-delete" onclick="removeField('${field.id}', event)" title="Delete">🗑</button>
+                        </div>
+                    </div>
+                `;
+            } else {
+                div.innerHTML = `
+                    <label>${field.label}${field.required ? ' <span class="text-danger">*</span>' : ''}</label>
+                    ${renderPreviewInput(field)}
+                    <div class="fb-side-icons">
+                        <button type="button" class="fb-icon-btn fb-icon-delete" onclick="removeField('${field.id}', event)" title="Delete">🗑</button>
+                    </div>
+                `;
+            }
+            canvas.insertBefore(div, insertBefore);
+        });
+
+        applyDesignToCanvas();
+    }
+
+    function renderPreviewInput(field) {
+        switch (field.type) {
+            case 'heading':
+                return `<h5 class="mb-0">${field.label}</h5>`;
+            case 'paragraph':
+                return `<p class="text-muted mb-0">${field.label}</p>`;
+            case 'fullname':
+                return `<div class="d-flex gap-2"><input type="text" class="form-control fb-preview-input" placeholder="${field.firstNameLabel || 'First Name'}" disabled /><input type="text" class="form-control fb-preview-input" placeholder="${field.lastNameLabel || 'Last Name'}" disabled /></div>`;
+            case 'firstname':
+            case 'lastname':
+                return `<input type="text" class="form-control fb-preview-input" placeholder="${field.placeholder}" disabled />`;
+            case 'address':
+                return `<input type="text" class="form-control fb-preview-input mb-1" placeholder="Street Address" disabled />
+                        <div class="d-flex gap-1"><input type="text" class="form-control fb-preview-input" placeholder="City" disabled /><input type="text" class="form-control fb-preview-input" placeholder="State" disabled /><input type="text" class="form-control fb-preview-input" placeholder="Zip" disabled /></div>`;
+            case 'appointment':
+                return `<input type="datetime-local" class="form-control fb-preview-input" disabled />`;
+            case 'signature':
+                return `<div style="border:1px dashed #ccc; height:80px; background:#fafbfc; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#aaa;">Signature pad</div>`;
+            case 'fillblank':
+                return `<div class="text-muted">This is a ____ field. Fill in the blank.</div>`;
+            case 'productlist':
+                return `<div class="border rounded p-2"><div class="d-flex justify-content-between"><span>Sample Product</span><span>Qty</span></div></div>`;
+            case 'textarea':
+                return `<textarea class="form-control fb-preview-input" placeholder="${field.placeholder}" disabled></textarea>`;
+            case 'dropdown':
+                return `<select class="form-select fb-preview-input" disabled><option>${field.options.join('</option><option>')}</option></select>`;
+            case 'checkbox':
+                return field.options.map(o => `<div class="form-check"><input type="checkbox" class="form-check-input fb-preview-input" disabled> <label class="form-check-label">${o}</label></div>`).join('');
+            case 'radio':
+                return field.options.map(o => `<div class="form-check"><input type="radio" class="form-check-input fb-preview-input" disabled> <label class="form-check-label">${o}</label></div>`).join('');
+            case 'image':
+                return `<div style="border:1px dashed #ccc; height:100px; display:flex; align-items:center; justify-content:center; color:#aaa;">🖼️ Image placeholder</div>`;
+            case 'fileupload':
+                return `<input type="file" class="form-control fb-preview-input" disabled />`;
+            case 'time':
+                return `<input type="time" class="form-control fb-preview-input" disabled />`;
+            case 'terms': {
+                const docHint = field.termsDocType === 'pdf'
+                    ? (field.termsPdfUrl ? '📄 PDF attached' : '📄 No PDF uploaded yet')
+                    : (field.termsLinkUrl ? `🔗 ${field.termsLinkUrl}` : '🔗 No link set');
+                return `<div class="form-check"><input type="checkbox" class="form-check-input fb-preview-input" disabled> <label class="form-check-label">${field.label}</label></div>
+                        <div class="text-muted small mt-1">${docHint}</div>`;
+            }
+            case 'captcha': {
+                const captchaNames = { hcaptcha: 'hCaptcha', recaptcha: 'reCAPTCHA', jotcaptcha: 'JotCaptcha' };
+                return `<div class="border rounded p-2 d-flex align-items-center gap-2" style="background:#fafbfc;">
+                            <input type="checkbox" class="fb-preview-input" disabled />
+                            <span class="text-muted small">I am human</span>
+                            <span class="badge bg-secondary ms-auto">${captchaNames[field.captchaType] || 'hCaptcha'}</span>
+                        </div>`;
+            }
+            case 'starrating':
+                return `<div style="font-size:22px; color:#ffc107;">${'★'.repeat(field.maxStars || 5)}</div>`;
+            case 'date':
+                return `<input type="date" class="form-control fb-preview-input" disabled />`;
+            case 'phone':
+                return `<input type="tel" class="form-control fb-preview-input" placeholder="${field.placeholder}" disabled />`;
+            case 'number':
+                return `<input type="number" class="form-control fb-preview-input" placeholder="${field.placeholder}" disabled />`;
+            case 'payment': {
+                const gwLabel = { paypal: 'PayPal', stripe: 'Stripe', square: 'Square' }[field.gateway] || field.gateway;
+                const amtLabel = field.amountType === 'fixed'
+                    ? `${field.currency} ${Number(field.amount || 0).toFixed(2)}`
+                    : (field.amountType === 'productlist' ? 'Based on product list' : 'User-defined amount');
+                return `<div class="border rounded p-3" style="background:#fafbfc;">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="badge bg-primary">${gwLabel}</span>
+                                <span class="text-muted small">${amtLabel}</span>
+                            </div>
+                            <div class="text-muted small">Live card/PayPal/Square widget renders here on the published form.</div>
+                        </div>`;
+            }
+            default:
+                return `<input type="text" class="form-control fb-preview-input" placeholder="${field.placeholder}" disabled />`;
+        }
+    }
+
+    function selectField(id) {
+        selectedFieldId = id;
+        submitSelected = false;
+        designPanelOpen = false;
+        document.getElementById('closeDesignBtn').style.display = 'none';
+        document.getElementById('propsPanelTitle').textContent = 'Field Properties';
+        document.getElementById('fbPropsPanel').classList.remove('fb-props-dark');
+        document.getElementById('canvasLogoBanner').classList.remove('selected');
+        document.querySelector('.fb-canvas-submit')?.classList.remove('selected');
+        renderCanvas();
+        renderProps();
+    }
+
+    function removeField(id, evt) {
+        evt.stopPropagation();
+        formFields = formFields.filter(f => f.id !== id);
+        if (selectedFieldId === id) selectedFieldId = null;
+        renderCanvas();
+        renderProps();
+    }
+
+    function syncOrderFromDOM() {
+        const fieldItems = document.querySelectorAll('#canvas .fb-canvas-item');
+        const fieldIds = Array.from(fieldItems).map(el => el.getAttribute('data-id'));
+        formFields.sort((a, b) => fieldIds.indexOf(a.id) - fieldIds.indexOf(b.id));
+    }
+
+    function fieldWidthToggleHtml(field) {
+        return `
+            <label class="form-label mt-2">Field Width</label>
+            <div class="fb-width-toggle">
+                <div class="fb-width-btn ${field.width !== 'half' ? 'active' : ''}" onclick="updateField('${field.id}','width','full'); renderProps();">Full Width</div>
+                <div class="fb-width-btn ${field.width === 'half' ? 'active' : ''}" onclick="updateField('${field.id}','width','half'); renderProps();">Half (Side by Side)</div>
+            </div>
+        `;
+    }
+
+    function renderProps() {
+        const panel = document.getElementById('propsPanel');
+        const field = formFields.find(f => f.id === selectedFieldId);
+        if (!field) {
+            panel.innerHTML = '<p class="text-muted small">Select a field to edit</p>';
+            return;
+        }
+
+        // Full Name
+        if (field.type === 'fullname') {
+            panel.innerHTML = `
+                <label class="form-label">Field Label</label>
+                <input class="form-control mb-2" value="${field.label}" onchange="updateField('${field.id}','label',this.value)" />
+
+                <label class="form-label">Box Labels (shown side by side)</label>
+                <div class="d-flex gap-2 mb-2">
+                    <input class="form-control" placeholder="First Name" value="${field.firstNameLabel || ''}" onchange="updateField('${field.id}','firstNameLabel',this.value)" />
+                    <input class="form-control" placeholder="Last Name" value="${field.lastNameLabel || ''}" onchange="updateField('${field.id}','lastNameLabel',this.value)" />
+                </div>
+
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="reqChk" ${field.required ? 'checked' : ''} onchange="updateField('${field.id}','required',this.checked)">
+                    <label class="form-check-label" for="reqChk">Required</label>
+                </div>
+                ${fieldWidthToggleHtml(field)}
+            `;
+            return;
+        }
+
+        // Heading
+        if (field.type === 'heading') {
+            panel.innerHTML = `
+                <label class="form-label">Text</label>
+                <input class="form-control mb-2" value="${field.label}" onchange="updateField('${field.id}','label',this.value)" />
+
+                <label class="form-label">Heading Background Color</label>
+                <div class="d-flex gap-2 mb-2">
+                    <input type="color" class="form-control form-control-color" style="width:48px;" value="${field.headingBgColor || '#ffffff'}" onchange="updateField('${field.id}','headingBgColor',this.value)" />
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="updateField('${field.id}','headingBgColor',''); renderProps();">Clear</button>
+                </div>
+
+                <label class="form-label">Heading Text Color</label>
+                <input type="color" class="form-control form-control-color mb-2" style="width:48px;" value="${field.headingTextColor || '#1c2b39'}" onchange="updateField('${field.id}','headingTextColor',this.value)" />
+            `;
+            return;
+        }
+
+        // Payment
+        if (field.type === 'payment') {
+            const gw = gatewayInfo[field.gateway] || gatewayInfo.paypal;
+            const keyLabel = field.gateway === 'paypal' ? 'PayPal Client ID'
+                : field.gateway === 'square' ? 'Square Application ID'
+                : 'Stripe Publishable Key';
+
+            panel.innerHTML = `
+                <div class="fb-gateway-badge">
+                    <span class="fb-gateway-icon" style="background:${gw.color};">${gw.icon}</span>
+                    ${gw.label} Payment
+                </div>
+
+                <label class="form-label">Section Title</label>
+                <input class="form-control mb-2" value="${field.label}" onchange="updateField('${field.id}','label',this.value)" />
+
+                <div class="form-check mb-3">
+                    <input type="checkbox" class="form-check-input" id="reqChk" ${field.required ? 'checked' : ''} onchange="updateField('${field.id}','required',this.checked)">
+                    <label class="form-check-label" for="reqChk">Required</label>
+                </div>
+
+                <label class="form-label">Mode</label>
+                <select class="form-select mb-2" onchange="updateField('${field.id}','gatewayMode',this.value)">
+                    <option value="sandbox" ${field.gatewayMode === 'sandbox' ? 'selected' : ''}>Sandbox / Test</option>
+                    <option value="live" ${field.gatewayMode === 'live' ? 'selected' : ''}>Live</option>
+                </select>
+
+                <label class="form-label">${keyLabel}</label>
+                <input class="form-control mb-1" placeholder="pk_... / client-id / app-id" value="${field.publicKey || ''}" onchange="updateField('${field.id}','publicKey',this.value)" />
+                <p class="text-muted small mb-2">This is the <b>public</b> key only — safe to expose on the live form. Never enter a secret key here.</p>
+
+                <label class="form-label">Amount Type</label>
+                <select class="form-select mb-2" onchange="updateField('${field.id}','amountType',this.value); renderProps();">
+                    <option value="fixed" ${field.amountType === 'fixed' ? 'selected' : ''}>Fixed Amount</option>
+                    <option value="userdefined" ${field.amountType === 'userdefined' ? 'selected' : ''}>User-Defined Amount</option>
+                    <option value="productlist" ${field.amountType === 'productlist' ? 'selected' : ''}>Based on Product List</option>
+                </select>
+
+                ${field.amountType === 'fixed' ? `
+                <label class="form-label">Amount</label>
+                <div class="d-flex gap-2 mb-2">
+                    <select class="form-select" style="max-width:90px;" onchange="updateField('${field.id}','currency',this.value)">
+                        <option value="USD" ${field.currency === 'USD' ? 'selected' : ''}>USD</option>
+                        <option value="EUR" ${field.currency === 'EUR' ? 'selected' : ''}>EUR</option>
+                        <option value="GBP" ${field.currency === 'GBP' ? 'selected' : ''}>GBP</option>
+                        <option value="INR" ${field.currency === 'INR' ? 'selected' : ''}>INR</option>
+                    </select>
+                    <input type="number" step="0.01" min="0" class="form-control" value="${field.amount || 0}" onchange="updateField('${field.id}','amount',parseFloat(this.value))" />
+                </div>` : ''}
+            `;
+            return;
+        }
+
+        // Terms & Conditions
+        if (field.type === 'terms') {
+            const docType = field.termsDocType || 'link';
+            panel.innerHTML = `
+                <label class="form-label">Label Text</label>
+                <input class="form-control mb-2" value="${field.label}" onchange="updateField('${field.id}','label',this.value)" />
+
+                <label class="form-label">Terms Document</label>
+                <div class="fb-width-toggle mb-2">
+                    <div class="fb-width-btn ${docType === 'link' ? 'active' : ''}" onclick="updateField('${field.id}','termsDocType','link'); renderProps();">Link</div>
+                    <div class="fb-width-btn ${docType === 'pdf' ? 'active' : ''}" onclick="updateField('${field.id}','termsDocType','pdf'); renderProps();">Upload PDF</div>
+                </div>
+
+                ${docType === 'link' ? `
+                <label class="form-label">Terms Link</label>
+                <input class="form-control mb-2" placeholder="https://example.com/terms" value="${field.termsLinkUrl || ''}" onchange="updateField('${field.id}','termsLinkUrl',this.value)" />
+                <p class="text-muted small mb-2">Users will see a link that opens this page in a new tab.</p>
+                ` : `
+                <label class="form-label">Terms PDF</label>
+                <input type="file" accept="application/pdf" class="form-control mb-1" id="termsPdfFile_${field.id}" onchange="uploadTermsPdf('${field.id}')" />
+                ${field.termsPdfUrl ? `
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <a href="${field.termsPdfUrl}" target="_blank" class="small">📄 View uploaded PDF</a>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="updateField('${field.id}','termsPdfUrl',''); renderProps();">Remove</button>
+                </div>` : `<p class="text-muted small mb-2">No PDF uploaded yet.</p>`}
+                `}
+
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="reqChk" ${field.required ? 'checked' : ''} onchange="updateField('${field.id}','required',this.checked)">
+                    <label class="form-check-label" for="reqChk">Required</label>
+                </div>
+                ${fieldWidthToggleHtml(field)}
+            `;
+            return;
+        }
+
+        // Captcha
+        if (field.type === 'captcha') {
+            const captchaOptions = [
+                { id: 'hcaptcha', label: 'hCAPTCHA', icon: '🤖' },
+                { id: 'recaptcha', label: 'reCAPTCHA', icon: '🔒' },
+                { id: 'jotcaptcha', label: 'JotCaptcha', icon: '🔤' }
+            ];
+            const alignment = field.labelAlignment || 'top';
+            panel.innerHTML = `
+                <label class="form-label">Field Label</label>
+                <input class="form-control mb-2" value="${field.label}" onchange="updateField('${field.id}','label',this.value)" />
+
+                <label class="form-label">Label Alignment</label>
+                <div class="fb-fieldalign-toggle">
+                    <div class="fb-fieldalign-btn ${alignment === 'left' ? 'active' : ''}" onclick="updateField('${field.id}','labelAlignment','left'); renderProps();">LEFT</div>
+                    <div class="fb-fieldalign-btn ${alignment === 'right' ? 'active' : ''}" onclick="updateField('${field.id}','labelAlignment','right'); renderProps();">RIGHT</div>
+                    <div class="fb-fieldalign-btn ${alignment === 'top' ? 'active' : ''}" onclick="updateField('${field.id}','labelAlignment','top'); renderProps();">TOP</div>
+                </div>
+
+                <label class="form-label">Captcha Type</label>
+                <div class="d-flex gap-2 mb-2">
+                    ${captchaOptions.map(o => `
+                        <div class="fb-captcha-swatch ${field.captchaType === o.id ? 'active' : ''}" onclick="updateField('${field.id}','captchaType','${o.id}'); renderProps();">
+                            <div style="font-size:20px;">${o.icon}</div>
+                            <div style="font-size:11px; font-weight:600; margin-top:4px;">${o.label}</div>
+                        </div>
+                    `).join('')}
+                </div>
+
+                ${field.captchaType === 'jotcaptcha' ? `
+                <p class="text-muted small mb-2">JotCaptcha needs no site key — it shows a simple "I am human" checkbox challenge.</p>
+                ` : `
+                <label class="form-label">${field.captchaType === 'recaptcha' ? 'reCAPTCHA' : 'hCaptcha'} Site Key</label>
+                <input class="form-control mb-1" placeholder="Paste your ${field.captchaType === 'recaptcha' ? 'reCAPTCHA' : 'hCaptcha'} site key" value="${field.captchaSiteKey || ''}" onchange="updateField('${field.id}','captchaSiteKey',this.value)" />
+                <p class="text-muted small mb-2">${field.captchaSiteKey ? '✅ Site key set' : '⚠️ No site key set — a test key will be shown so the widget still renders, but it will not actually block bots.'}</p>
+                `}
+            `;
+            return;
+        }
+
+        // Everything else
+        let extraHtml = '';
+        if (field.type === 'dropdown' || field.type === 'radio' || field.type === 'checkbox') {
+            extraHtml = `
+                <label class="form-label mt-2">Options (one per line)</label>
+                <textarea class="form-control" rows="4" onchange="updateOptions('${field.id}', this.value)">${field.options.join('\n')}</textarea>
+            `;
+        } else if (field.type === 'starrating') {
+            extraHtml = `
+                <label class="form-label mt-2">Max Stars</label>
+                <input type="number" class="form-control" min="3" max="10" value="${field.maxStars || 5}" onchange="updateField('${field.id}','maxStars',parseInt(this.value))" />
+            `;
+        }
+
+        const skipLabelEdit = (field.type === 'paragraph');
+
+        panel.innerHTML = `
+            <label class="form-label">${skipLabelEdit ? 'Text' : 'Label'}</label>
+            <input class="form-control mb-2" value="${field.label}" onchange="updateField('${field.id}','label',this.value)" />
+            ${!skipLabelEdit ? `
+            <label class="form-label">Placeholder</label>
+            <input class="form-control mb-2" value="${field.placeholder}" onchange="updateField('${field.id}','placeholder',this.value)" />
+            <div class="form-check">
+                <input type="checkbox" class="form-check-input" id="reqChk" ${field.required ? 'checked' : ''} onchange="updateField('${field.id}','required',this.checked)">
+                <label class="form-check-label" for="reqChk">Required</label>
+            </div>
+            ${fieldWidthToggleHtml(field)}` : ''}
+            ${extraHtml}
+        `;
+    }
+
+    function updateField(id, key, value) {
+        const field = formFields.find(f => f.id === id);
+        field[key] = value;
+        renderCanvas();
+    }
+
+    function updateOptions(id, text) {
+        const field = formFields.find(f => f.id === id);
+        field.options = text.split('\n').map(o => o.trim()).filter(o => o);
+        renderCanvas();
+    }
+
+    // ============================================================
+    // SAVE / LOAD
+    // ============================================================
+    function saveForm() {
+        const payload = {
+            formId: currentFormId,
+            title: document.getElementById('formTitle').value || 'Untitled Form',
+            schema: JSON.stringify(formFields),
+            logoUrl: document.getElementById('logoUrl').value || null,
+            logoWidth: logoWidth,
+            logoHeight: logoHeight,
+            design: JSON.stringify(formDesign)
+        };
+
+        fetch('/Admin/Form/SaveFormSchema', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                currentFormId = data.formId;
+                alert('Form saved! FormId: ' + data.formId);
+            } else {
+                alert('Save failed: ' + data.message);
+            }
+        })
+        .catch(err => alert('Error: ' + err));
+    }
+
+    // ============================================================
+    // CLICK HANDLER FOR SUBMIT BUTTON
+    // ============================================================
+    document.addEventListener('click', function(e) {
+        const submitWrapper = document.getElementById('canvasSubmitWrapper');
+        if (submitWrapper && submitWrapper.contains(e.target) && !e.target.closest('.fb-icon-btn')) {
+            selectSubmitButton();
+        }
+    });
+
+    // ============================================================
+    // LOAD EXISTING FORM
+    // ============================================================
+    @if (ViewBag.FormSchema != null)
+    {
+                <text>
+                (function loadExistingForm() {
+                    try {
+                        const savedFields = JSON.parse(@Html.Raw(Json.Serialize((string)ViewBag.FormSchema)));
+                        formFields = savedFields || [];
+                        fieldCounter = formFields.length;
+
+                        document.getElementById('formTitle').value = @Html.Raw(Json.Serialize((string)ViewBag.FormTitle));
+
+                        const logoUrl = @Html.Raw(Json.Serialize((string)ViewBag.LogoUrl));
+                        if (logoUrl) {
+                            document.getElementById('logoUrl').value = logoUrl;
+
+                            const savedWidth = @Html.Raw(Json.Serialize((int?)ViewBag.LogoWidth));
+                            const savedHeight = @Html.Raw(Json.Serialize((int?)ViewBag.LogoHeight));
+                            logoWidth = savedWidth || null;
+                            logoHeight = savedHeight || 110;
+
+                            updateLogoPreview(logoUrl);
+                        }
+
+                        const designJson = @Html.Raw(Json.Serialize((string)ViewBag.FormDesign));
+                        if (designJson) {
+                            try {
+                                const savedDesign = JSON.parse(designJson);
+                                formDesign = Object.assign({}, formDesign, savedDesign || {});
+                            } catch (e2) {
+                                console.error('Failed to parse saved form design', e2);
+                            }
+                        }
+
+                        renderCanvas();
+                    } catch (e) {
+                        console.error('Failed to load existing form', e);
+                    }
+                })();
+                </text>
+    }
+</script>
+<style>
+    .fb-logo-inline .form-control[type="file"] {
+        padding: 6px 10px;
+        border-radius: 6px;
+        border: 1px solid #d8dee6;
+        font-size: 13px;
+    }
+
+        .fb-logo-inline .form-control[type="file"]::file-selector-button {
+            background: #4a7cf6;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            padding: 5px 10px;
+            margin-right: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+            .fb-logo-inline .form-control[type="file"]::file-selector-button:hover {
+                background: #3763d8;
+            }
+
+    body {
+        background: #eef1f5;
+    }
+
+    .fb-wrapper {
+        display: flex;
+        gap: 15px;
+        min-height: 600px;
+    }
+
+    .fb-palette, .fb-props {
+        width: 250px;
+        background: #2b3648;
+        border-radius: 10px;
+        padding: 14px;
+        max-height: 720px;
+        overflow-y: auto;
+        color: #fff;
+    }
+
+    .fb-props {
+        background: #33475b;
+        color: #fff;
+        border: 1px solid #e3e7ed;
+    }
+
+        .fb-palette h6, .fb-props h6 {
+            font-weight: 700;
+            margin-bottom: 12px;
+            letter-spacing: .3px;
+            text-transform: uppercase;
+            font-size: 12px;
+        }
+
+    .fb-palette h6 {
+        color: #9aa5b8;
+    }
+
+    /* Tabs at the top of the left palette: Labels vs Payments */
+    .fb-palette-tabs {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 14px;
+        background: #1e2635;
+        border-radius: 8px;
+        padding: 4px;
+    }
+
+    .fb-palette-tab {
+        flex: 1;
+        text-align: center;
+        padding: 8px 8px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: .3px;
+        text-transform: uppercase;
+        cursor: pointer;
+        color: #9aa5b8;
+        user-select: none;
+    }
+
+        .fb-palette-tab.active {
+            background: #ff7a1a;
+            color: #fff;
+        }
+
+    .fb-props h6 {
+        color: #fff;
+    }
+
+    .fb-canvas {
+        flex: 1;
+        background: #fff;
+        border-radius: 10px;
+        padding: 25px 30px;
+        min-height: 500px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+        display: flex;
+        flex-wrap: wrap;
+        align-content: flex-start;
+        gap: 14px;
+    }
+
+    .fb-field-type {
+        padding: 11px 14px;
+        margin-bottom: 6px;
+        background: #333f54;
+        border-radius: 6px;
+        cursor: grab;
+        font-size: 14px;
+        font-weight: 500;
+        color: #dbe1ea;
+        transition: background .15s ease, color .15s ease;
+        user-select: none;
+    }
+
+        .fb-field-type:hover {
+            background: #ff7a1a;
+            color: #fff;
+        }
+
+        .fb-field-type:active {
+            cursor: grabbing;
+        }
+
+    .fb-canvas-item {
+        padding: 16px 60px 16px 16px;
+        margin-bottom: 0;
+        border-radius: 8px;
+        background: #fdfdfd;
+        border: 1px solid #eceff3;
+        cursor: pointer;
+        position: relative;
+        transition: border-color .15s ease, box-shadow .15s ease;
+        flex: 0 0 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+        .fb-canvas-item:hover {
+            border-color: #d8dee6;
+        }
+
+        .fb-canvas-item.selected {
+            border-color: #4a7cf6;
+            background: #f6f9ff;
+            box-shadow: 0 0 0 3px rgba(74,124,246,.12);
+        }
+
+        .fb-canvas-item label {
+            font-weight: 600;
+            display: block;
+            margin-bottom: 6px;
+            color: #1c2b39;
+        }
+
+        .fb-canvas-item .fb-preview-input {
+            pointer-events: none;
+            opacity: .65;
+        }
+
+        /* Heading field renders as a full-bleed colored section inside the card */
+        .fb-canvas-item.fb-heading-item {
+            padding: 0;
+            overflow: hidden;
+        }
+
+            .fb-canvas-item.fb-heading-item .fb-heading-section {
+                padding: 16px 60px 16px 16px;
+                border-radius: 8px;
+                position: relative;
+            }
+
+            .fb-canvas-item.fb-heading-item label {
+                margin-bottom: 0;
+            }
+
+            /* ✅ FIXED: Heading delete icon now visible */
+            .fb-canvas-item.fb-heading-item .fb-side-icons {
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                display: none;
+                flex-direction: row;
+                gap: 6px;
+            }
+
+            .fb-canvas-item.fb-heading-item.selected .fb-side-icons {
+                display: flex !important;
+            }
+
+    .fb-side-icons {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        display: none;
+        flex-direction: row;
+        gap: 6px;
+    }
+
+    .fb-canvas-item.selected .fb-side-icons {
+        display: flex !important;
+    }
+
+    .fb-canvas-item:not(.selected) .fb-side-icons {
+        display: none !important;
+    }
+
+    .fb-icon-btn {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 13px;
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+        transition: transform 0.15s ease;
+    }
+
+        .fb-icon-btn:hover {
+            transform: scale(1.1);
+        }
+
+    .fb-icon-settings {
+        background: #2b3648;
+    }
+
+    .fb-icon-delete {
+        background: #e74c3c;
+    }
+
+    .fb-icon-paint {
+        background: #4a7cf6;
+    }
+
+    .fb-icon-btn:hover {
+        filter: brightness(1.1);
+    }
+
+    .fb-empty-hint {
+        color: #b5bcc7;
+        text-align: center;
+        padding: 80px 0;
+        border: 2px dashed #e3e7ed;
+        border-radius: 8px;
+        flex: 0 0 100%;
+    }
+
+    .fb-props .form-label {
+        font-size: 13px;
+        margin-bottom: 4px;
+        font-weight: 600;
+    }
+
+    .fb-props .form-control, .fb-props textarea {
+        border-radius: 6px;
+    }
+
+        .fb-props .form-control[type="color"] {
+            padding: 3px;
+            height: 38px;
+        }
+
+    /* Payment gateway badge shown at the top of the Payment field's properties panel */
+    .fb-gateway-badge {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: #eef1f5;
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin-bottom: 14px;
+        font-weight: 700;
+        color: #1c2b39;
+    }
+
+        .fb-gateway-badge .fb-gateway-icon {
+            width: 26px;
+            height: 26px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+    .fb-toolbar {
+        margin-bottom: 18px;
+    }
+
+    .fb-title-input {
+        border-radius: 8px;
+    }
+
+    .btn-save-form {
+        background: #4a7cf6;
+        border: none;
+        border-radius: 8px;
+        padding: 9px 22px;
+        font-weight: 600;
+        color: #fff;
+    }
+
+        .btn-save-form:hover {
+            background: #3763d8;
+            color: #fff;
+        }
+
+    .fb-logo-box {
+        background: #fff;
+        border: 1px solid #e3e7ed;
+        border-radius: 10px;
+        padding: 16px;
+        max-width: 420px;
+        margin-bottom: 20px;
+    }
+
+        .fb-logo-box label {
+            font-weight: 700;
+            color: #1c2b39;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+    /* Live logo banner shown at the top of the canvas, mirrors RenderForm.cshtml's .form-logo-wrap */
+    .fb-canvas-logo-banner {
+        text-align: center;
+        padding: 10px 0 20px;
+        margin-bottom: 16px;
+        border-bottom: 1px solid #eceff3;
+        cursor: pointer;
+        border-radius: 8px;
+        transition: box-shadow .15s ease;
+        flex: 0 0 100%;
+    }
+
+        .fb-canvas-logo-banner:hover {
+            box-shadow: 0 0 0 2px rgba(74,124,246,.15);
+        }
+
+        .fb-canvas-logo-banner.selected {
+            box-shadow: 0 0 0 3px rgba(74,124,246,.3);
+        }
+
+        .fb-canvas-logo-banner img {
+            border-radius: 8px;
+        }
+
+    /* ===================== FORM DESIGNER PANEL ===================== */
+    .fb-props-header {
+        border-bottom: 1px solid #e3e7ed;
+        padding-bottom: 10px;
+        margin-bottom: 12px !important;
+    }
+
+    .btn-design-toggle {
+        background: #2b3648;
+        border: none;
+        border-radius: 8px;
+        padding: 9px 18px;
+        font-weight: 600;
+        color: #fff;
+    }
+
+        .btn-design-toggle:hover {
+            background: #1e2635;
+            color: #fff;
+        }
+
+    .fb-design-tabs {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 16px;
+        background: #eef1f5;
+        border-radius: 8px;
+        padding: 4px;
+    }
+
+    .fb-design-tab {
+        flex: 1;
+        text-align: center;
+        padding: 7px 8px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: .3px;
+        text-transform: uppercase;
+        cursor: pointer;
+        color: #6b7a90;
+        user-select: none;
+    }
+
+        .fb-design-tab.active {
+            background: #4a7cf6;
+            color: #fff;
+        }
+
+    .fb-scheme-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 4px;
+    }
+
+    .fb-scheme-swatch {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 2px solid #e3e7ed;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: border-color .15s ease, transform .1s ease;
+    }
+
+        .fb-scheme-swatch span {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            display: block;
+        }
+
+        .fb-scheme-swatch:hover {
+            transform: scale(1.08);
+        }
+
+        .fb-scheme-swatch.active {
+            border-color: #4a7cf6;
+            box-shadow: 0 0 0 2px rgba(74,124,246,.2);
+        }
+
+    .fb-theme-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+
+    .fb-theme-card {
+        border: 2px solid #e3e7ed;
+        border-radius: 8px;
+        overflow: hidden;
+        cursor: pointer;
+        transition: border-color .15s ease;
+    }
+
+        .fb-theme-card:hover {
+            border-color: #b9c3d1;
+        }
+
+        .fb-theme-card.active {
+            border-color: #4a7cf6;
+            box-shadow: 0 0 0 2px rgba(74,124,246,.2);
+        }
+
+    .fb-theme-thumb {
+        height: 54px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 6px;
+    }
+
+    .fb-theme-thumb-card {
+        width: 100%;
+        height: 100%;
+        border-radius: 4px;
+        padding: 8px 6px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+
+        .fb-theme-thumb-card span {
+            display: block;
+            height: 4px;
+            border-radius: 2px;
+            margin-bottom: 4px;
+            opacity: .8;
+        }
+
+    .fb-theme-name {
+        font-size: 11px;
+        font-weight: 600;
+        text-align: center;
+        padding: 5px 4px;
+        color: #33475b;
+        background: #fff;
+    }
+
+    /* ===================== FORM DESIGNER — DARK PANEL ===================== */
+    .fb-props.fb-props-dark {
+        background: #1e2635;
+        color: #eef1f5;
+        border-color: #1e2635;
+    }
+
+        .fb-props.fb-props-dark .fb-props-header {
+            border-bottom-color: #333f54;
+        }
+
+        .fb-props.fb-props-dark #propsPanelTitle {
+            color: #fff;
+        }
+
+        .fb-props.fb-props-dark .form-label {
+            color: #b5bcc7;
+        }
+
+        .fb-props.fb-props-dark .text-muted {
+            color: #eef1f5 !important;
+        }
+
+        .fb-props.fb-props-dark .form-control,
+        .fb-props.fb-props-dark .form-select {
+            background: #2b3648;
+            border-color: #333f54;
+            color: #eef1f5;
+        }
+
+        .fb-props.fb-props-dark .btn-outline-secondary {
+            color: #dbe1ea;
+            border-color: #4a5772;
+        }
+
+            .fb-props.fb-props-dark .btn-outline-secondary:hover {
+                background: #333f54;
+                color: #fff;
+            }
+
+        /* Design tabs */
+        .fb-props.fb-props-dark .fb-design-tabs {
+            background: #171d29;
+        }
+
+        .fb-props.fb-props-dark .fb-design-tab {
+            color: #8a95a8;
+        }
+
+            .fb-props.fb-props-dark .fb-design-tab.active {
+                background: #ff7a1a;
+                color: #fff;
+            }
+
+    /* ===================== FIELD WIDTH TOGGLE ===================== */
+    .fb-width-toggle {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 12px;
+    }
+
+    .fb-width-btn {
+        flex: 1;
+        text-align: center;
+        padding: 7px 6px;
+        border-radius: 6px;
+        border: 1px solid #d8dee6;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        background: #fff;
+        color: #33475b;
+    }
+
+        .fb-width-btn.active {
+            background: #4a7cf6;
+            border-color: #4a7cf6;
+            color: #fff;
+        }
+
+    .fb-props-dark .fb-width-btn {
+        background: #2b3648;
+        border-color: #333f54;
+        color: #dbe1ea;
+    }
+
+        .fb-props-dark .fb-width-btn.active {
+            background: #ff7a1a;
+            border-color: #ff7a1a;
+        }
+
+    /* ===================== ALIGN BUTTON GROUP ===================== */
+    .fb-align-group {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 12px;
+    }
+
+    .fb-align-btn {
+        flex: 1;
+        text-align: center;
+        padding: 7px 6px;
+        border-radius: 6px;
+        border: 1px solid #4a5772;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .3px;
+        text-transform: uppercase;
+        cursor: pointer;
+        background: #2b3648;
+        color: #dbe1ea;
+    }
+
+        .fb-align-btn.active {
+            background: #ff7a1a;
+            border-color: #ff7a1a;
+            color: #fff;
+        }
+
+    /* ===================== CANVAS — FLEX ROW LAYOUT ===================== */
+    .fb-canvas-item.fb-width-half {
+        flex: 0 0 calc(50% - 7px);
+        max-width: calc(50% - 7px);
+        padding-right: 16px;
+    }
+
+        .fb-canvas-item.fb-width-half .fb-side-icons {
+            top: 8px;
+            right: 8px;
+        }
+
+        .fb-canvas-item.fb-width-half .fb-icon-btn {
+            width: 26px;
+            height: 26px;
+            font-size: 12px;
+        }
+
+    #canvasLogoBanner, #emptyHint, #canvasSubmitPreview {
+        flex: 0 0 100%;
+    }
+
+    /* ===================== SUBMIT BUTTON IN CANVAS (DRAGGABLE) ===================== */
+    .fb-canvas-submit {
+        flex: 0 0 100%;
+        max-width: 100%;
+        padding: 10px 0;
+        text-align: center;
+        border-top: 2px dashed #e3e7ed;
+        margin-top: 10px;
+        cursor: grab;
+        transition: background 0.15s ease;
+        border-radius: 8px;
+    }
+
+        .fb-canvas-submit.dragging {
+            opacity: 0.5;
+        }
+
+        .fb-canvas-submit .fb-submit-btn {
+            border: none;
+            border-radius: 8px;
+            padding: 10px 28px;
+            font-weight: 700;
+            background: #4a7cf6;
+            color: #fff;
+            cursor: grab;
+            pointer-events: none;
+        }
+
+        .fb-canvas-submit.selected {
+            border-color: #4a7cf6;
+            background: #f6f9ff;
+            box-shadow: 0 0 0 3px rgba(74,124,246,.12);
+        }
+
+        .fb-canvas-submit .fb-side-icons {
+            position: absolute;
+            top: 50%;
+            right: 10px;
+            transform: translateY(-50%);
+            display: none;
+            flex-direction: row;
+            gap: 6px;
+        }
+
+        .fb-canvas-submit.selected .fb-side-icons {
+            display: flex !important;
+        }
+
+    /* ===================== BUTTON STYLE GRID ===================== */
+    .fb-btnstyle-tabs {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 10px;
+    }
+
+    .fb-btnstyle-tab {
+        padding: 5px 10px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .3px;
+        text-transform: uppercase;
+        cursor: pointer;
+        color: #8a95a8;
+        background: #171d29;
+    }
+
+        .fb-btnstyle-tab.active {
+            background: #ff7a1a;
+            color: #fff;
+        }
+
+    .fb-btnstyle-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 6px;
+    }
+
+    .fb-btnstyle-swatch {
+        text-align: center;
+        padding: 8px 4px;
+        border-radius: 6px;
+        color: #fff;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+        border: 2px solid transparent;
+    }
+
+        .fb-btnstyle-swatch.active {
+            border-color: #fff;
+            box-shadow: 0 0 0 2px #ff7a1a;
+        }
+
+    .fb-captcha-swatch {
+        flex: 1;
+        min-width: 0;
+        box-sizing: border-box;
+        text-align: center;
+        padding: 8px 2px;
+        border: 2px solid #445068;
+        border-radius: 8px;
+        cursor: pointer;
+        background: #232c3d;
+        color: #dbe1ea;
+        transition: border-color .15s ease, background .15s ease;
+    }
+
+        .fb-captcha-swatch.active {
+            border-color: #4a7cf6;
+            background: #2c3a55;
+        }
+
+        .fb-captcha-swatch:hover {
+            border-color: #4a7cf6;
+        }
+
+    /* ===================== FIELD LABEL ALIGNMENT TOGGLE ===================== */
+    .fb-fieldalign-toggle {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 12px;
+    }
+
+    .fb-fieldalign-btn {
+        flex: 1;
+        min-width: 0;
+        box-sizing: border-box;
+        text-align: center;
+        padding: 7px 4px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .2px;
+        text-transform: uppercase;
+        cursor: pointer;
+        color: #c3cbda;
+        background: #232c3d;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+        .fb-fieldalign-btn.active {
+            background: #ff7a1a;
+            color: #fff;
+        }
+</style>

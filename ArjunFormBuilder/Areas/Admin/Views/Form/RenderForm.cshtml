@@ -1,0 +1,1116 @@
+@model ArjunFormBuilder.Entities.FormModel
+@{
+    ViewBag.Title = Model.Title;
+    Layout = null;
+
+
+    var designJson = string.IsNullOrEmpty(Model.DesignJson) ? "{}" : Model.DesignJson;
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>@Model.Title</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    @if (ViewBag.PaymentEnabled == true && ViewBag.PaymentGateway == "stripe")
+    {
+        <script src="https://js.stripe.com/v3/"></script>
+    }
+    @if (ViewBag.PaymentEnabled == true && ViewBag.PaymentGateway == "paypal")
+    {
+        <script src="https://www.paypal.com/sdk/js?client-id=@ViewBag.PaymentPublicKey&currency=@(ViewBag.PaymentCurrency ?? "USD")"></script>
+    }
+    @if (ViewBag.PaymentEnabled == true && ViewBag.PaymentGateway == "square")
+    {
+        <script src="@(ViewBag.PaymentMode == "live" ? "https://web.squarecdn.com/v1/square.js" : "https://sandbox.web.squarecdn.com/v1/square.js")"></script>
+    }
+    @if (ViewBag.CaptchaEnabled == true && ViewBag.CaptchaType == "hcaptcha")
+    {
+        <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
+    }
+    @if (ViewBag.CaptchaEnabled == true && ViewBag.CaptchaType == "recaptcha")
+    {
+        <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+    }
+    <style>
+        body {
+            background: #eef1f5;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            padding: 40px 15px;
+        }
+
+        .form-card {
+            max-width: 700px;
+            margin: 0 auto;
+            background: #fff;
+            border-radius: 14px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+
+        .form-logo-wrap {
+            padding: 30px 20px 20px;
+            border-bottom: 1px solid #eee;
+            transition: background-color 0.3s ease;
+        }
+
+            .form-logo-wrap img {
+                border-radius: 8px;
+                display: inline-block;
+                max-width: 100%;
+            }
+
+        .form-title-wrap {
+            text-align: center;
+            padding: 22px 20px 10px;
+        }
+
+            .form-title-wrap h3 {
+                font-weight: 700;
+                color: #1c2b39;
+                margin-bottom: 0;
+            }
+
+        .form-body {
+            padding: 25px 35px 35px;
+        }
+
+            .form-body .mb-3 {
+                margin-bottom: 22px !important;
+            }
+
+        .form-label {
+            font-weight: 600;
+            color: #33475b;
+            margin-bottom: 6px;
+        }
+
+        .form-control, .form-select {
+            border-radius: 8px;
+            border: 1px solid #d7dce1;
+            padding: 10px 12px;
+        }
+
+            .form-control:focus, .form-select:focus {
+                border-color: #4a7cf6;
+                box-shadow: 0 0 0 3px rgba(74,124,246,0.15);
+            }
+
+        .form-check-input:checked {
+            background-color: #4a7cf6;
+            border-color: #4a7cf6;
+        }
+
+        .btn-submit-form {
+            background: #4a7cf6;
+            border: none;
+            color: #fff;
+            font-weight: 600;
+            padding: 12px 40px;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: background .2s ease;
+        }
+
+            .btn-submit-form:hover {
+                background: #3763d8;
+            }
+
+        .submit-wrap {
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        h5 {
+            color: #1c2b39;
+            font-weight: 700;
+            margin-top: 8px;
+        }
+
+        /* Heading field — full-bleed colored section */
+        .form-heading-section {
+            margin: -8px -35px 22px;
+            padding: 16px 35px;
+        }
+
+            .form-heading-section h5 {
+                margin: 0;
+            }
+
+        /* ✅ ADDED — payment field styling */
+        .payment-box {
+            border: 1px solid #e3e7ed;
+            border-radius: 10px;
+            padding: 16px;
+            background: #fafbfc;
+        }
+
+            .payment-box .payment-amount-badge {
+                font-weight: 700;
+                color: #1c2b39;
+            }
+
+        .payment-message {
+            display: none;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+            .payment-message.payment-error {
+                display: block;
+                background: #fdecea;
+                color: #c0392b;
+            }
+
+            .payment-message.payment-info {
+                display: block;
+                background: #eaf1fd;
+                color: #2c5cc5;
+            }
+
+        /* ✅ ADDED — Half-width fields side by side */
+        .form-row {
+            display: flex;
+            flex-wrap: wrap;
+            margin: 0 -8px;
+        }
+
+            .form-row .form-group {
+                flex: 0 0 100%;
+                max-width: 100%;
+                padding: 0 8px;
+                margin-bottom: 22px;
+            }
+
+                .form-row .form-group.half {
+                    flex: 0 0 50%;
+                    max-width: 50%;
+                }
+
+        /* ✅ ADDED — Label alignment support (top/left/right) */
+        .form-group.label-left {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+            .form-group.label-left .form-label {
+                flex: 0 0 140px;
+                margin-bottom: 0;
+                padding-top: 8px;
+            }
+
+            .form-group.label-left .form-control,
+            .form-group.label-left .form-select {
+                flex: 1;
+            }
+
+        .form-group.label-right {
+            display: flex;
+            flex-direction: row-reverse;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+            .form-group.label-right .form-label {
+                flex: 0 0 140px;
+                margin-bottom: 0;
+                padding-top: 8px;
+                text-align: right;
+            }
+
+            .form-group.label-right .form-control,
+            .form-group.label-right .form-select {
+                flex: 1;
+            }
+
+        .form-group.label-top .form-label {
+            display: block;
+            margin-bottom: 6px;
+        }
+    </style>
+</head>
+<body>
+    <script src="Scripts/Admin/form-client-validate.js"></script>
+    <script src="Scripts/Admin/form-payment-gateway.js"></script>
+    <div class="form-card">
+        @{
+            var logoBgColor = "";
+            var logoAlignment = "center";
+            var logoAltText = "";
+            if (!string.IsNullOrEmpty(Model.DesignJson))
+            {
+                try
+                {
+                    var designObj = Newtonsoft.Json.Linq.JObject.Parse(Model.DesignJson);
+                    if (designObj["logoBgColor"] != null) logoBgColor = designObj["logoBgColor"].ToString();
+                    if (designObj["logoAlignment"] != null) logoAlignment = designObj["logoAlignment"].ToString();
+                    if (designObj["logoAltText"] != null) logoAltText = designObj["logoAltText"].ToString();
+                }
+                catch { }
+            }
+        }
+
+        @if (!string.IsNullOrEmpty(Model.LogoUrl))
+        {
+            <div class="form-logo-wrap"
+                 style="background-color: @(string.IsNullOrEmpty(logoBgColor) ? "transparent" : logoBgColor);
+                            text-align: @(logoAlignment == "left" ? "left" : logoAlignment == "right" ? "right" : "center");">
+                <img src="@Model.LogoUrl"
+                     alt="@(string.IsNullOrEmpty(logoAltText) ? "Form Logo" : logoAltText)"
+                     style="@(Model.LogoHeight.HasValue ? $"height:{Model.LogoHeight}px;" : "max-height:110px;")@(Model.LogoWidth.HasValue ? $"width:{Model.LogoWidth}px;" : "width:auto;")" />
+            </div>
+        }
+
+        <div class="form-title-wrap">
+            <h3>@Model.Title</h3>
+        </div>
+        <div class="form-body">
+            <form id="dynamicForm">
+                <div id="formFieldsContainer"></div>
+                <div class="submit-wrap">
+                    <button type="submit" class="btn btn-submit-form">Submit</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const schema = @Html.Raw(Model.FormSchema);
+        const formId = @Model.FormId;
+        const container = document.getElementById('formFieldsContainer');
+        const design = @Html.Raw(designJson);   // ✅ ADDED — { pageColor, pageImageUrl, formColor, formImageUrl, fontColor, inputBackground }
+
+        // ✅ ADDED — applies the Form Designer's page/form/font/input styling to the live published form
+        function applyDesignStyles(d) {
+            if (!d) return;
+
+            if (d.pageImageUrl) {
+                document.body.style.background = `url('${d.pageImageUrl}') center / cover no-repeat fixed`;
+            } else if (d.pageColor) {
+                document.body.style.background = d.pageColor;
+            }
+
+            const card = document.querySelector('.form-card');
+            if (card) {
+                if (d.formColor) card.style.background = d.formColor;
+                if (d.formImageUrl) {
+                    card.style.backgroundImage = `url('${d.formImageUrl}')`;
+                    card.style.backgroundSize = 'cover';
+                    card.style.backgroundPosition = 'center';
+                }
+            }
+
+            if (d.fontColor) {
+                document.querySelectorAll('.form-label, h3, h5, .text-muted').forEach(el => el.style.color = d.fontColor);
+            }
+
+            if (d.inputBackground) {
+                document.querySelectorAll('.form-control, .form-select').forEach(el => el.style.background = d.inputBackground);
+            }
+
+            // ✅ ADDED — Font family / size
+            if (d.fontFamily) {
+                document.body.style.fontFamily = d.fontFamily;
+            }
+            if (d.fontSize) {
+                document.querySelectorAll('.form-label, .form-control, .form-select').forEach(el => el.style.fontSize = d.fontSize + 'px');
+            }
+
+            // ✅ ADDED — Label alignment
+            if (d.labelAlignment && d.labelAlignment !== 'top') {
+                document.querySelectorAll('.form-group:not(.form-heading-group)').forEach(el => {
+                    el.classList.remove('label-top', 'label-left', 'label-right');
+                    el.classList.add('label-' + d.labelAlignment);
+                });
+            }
+
+            // ✅ ADDED — Form width
+            if (d.formWidth) {
+                const cardEl = document.querySelector('.form-card');
+                if (cardEl) {
+                    cardEl.style.maxWidth = d.formWidth + 'px';
+                    cardEl.style.margin = '0 auto';
+                }
+            }
+
+            // ✅ ADDED — Question spacing
+            if (d.questionSpacing) {
+                document.querySelectorAll('.form-group, .form-row').forEach(el => {
+                    el.style.marginBottom = d.questionSpacing + 'px';
+                });
+            }
+
+            // ✅ ADDED — Button style
+            if (d.buttonCss) {
+                const submitBtn = document.querySelector('.btn-submit-form');
+                if (submitBtn) {
+                    submitBtn.style.cssText = d.buttonCss + 'border:none; border-radius:8px; padding:12px 40px; font-weight:600; font-size:15px;';
+                }
+            }
+        }
+
+        // ============================================================
+        // BUILD FORM FIELDS
+        // ============================================================
+        let currentRow = null;
+        let halfBuffer = [];
+
+        function flushHalfBuffer() {
+            if (halfBuffer.length === 0) return;
+            // If only one half field, render it as full width
+            if (halfBuffer.length === 1) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'form-group';
+                wrapper.appendChild(halfBuffer[0]);
+                container.appendChild(wrapper);
+            } else {
+                // Two half fields side by side
+                const row = document.createElement('div');
+                row.className = 'form-row';
+                halfBuffer.forEach(fieldEl => {
+                    const group = document.createElement('div');
+                    group.className = 'form-group half';
+                    group.appendChild(fieldEl);
+                    row.appendChild(group);
+                });
+                container.appendChild(row);
+            }
+            halfBuffer = [];
+        }
+
+        schema.forEach(field => {
+            if (field.type === 'heading') {
+                flushHalfBuffer();
+                const wrapper = document.createElement('div');
+                wrapper.className = 'mb-3 form-heading-section form-heading-group';
+                const bg = field.headingBgColor ? field.headingBgColor : 'transparent';
+                const fg = field.headingTextColor || '#1c2b39';
+                wrapper.style.backgroundColor = bg;
+                wrapper.innerHTML = `<h5 style="color:${fg};">${field.label}</h5>`;
+                container.appendChild(wrapper);
+                return;
+            }
+
+            if (field.type === 'paragraph') {
+                flushHalfBuffer();
+                const wrapper = document.createElement('div');
+                wrapper.className = 'form-group';
+                wrapper.innerHTML = `<p class="text-muted">${field.label}</p>`;
+                container.appendChild(wrapper);
+                return;
+            }
+
+            // Create the field element
+            const fieldEl = document.createElement('div');
+            fieldEl.className = 'form-group label-top';
+
+            const label = document.createElement('label');
+            label.className = 'form-label';
+            label.innerHTML = field.label + (field.required ? ' <span class="text-danger">*</span>' : '');
+            if (field.type !== 'terms' && field.type !== 'fullname' && field.type !== 'firstname' && field.type !== 'lastname') {
+                fieldEl.appendChild(label);
+            }
+
+            let input;
+            switch (field.type) {
+                case 'firstname':
+                case 'lastname':
+                    // For firstname/lastname, we want the label above the input
+                    const nameLabel = document.createElement('label');
+                    nameLabel.className = 'form-label';
+                    nameLabel.innerHTML = field.label + (field.required ? ' <span class="text-danger">*</span>' : '');
+                    fieldEl.appendChild(nameLabel);
+                    input = document.createElement('input');
+                    input.type = 'text';
+                    input.className = 'form-control';
+                    input.placeholder = field.placeholder || field.label;
+                    input.setAttribute('data-field-id', field.id);
+                    input.setAttribute('data-field-label', field.label);
+                    if (field.required) input.required = true;
+                    fieldEl.appendChild(input);
+                    break;
+
+                case 'fullname':
+                    // Full Name with First/Last labels
+                    const firstLbl = field.firstNameLabel || 'First Name';
+                    const lastLbl = field.lastNameLabel || 'Last Name';
+                    const nameContainer = document.createElement('div');
+                    nameContainer.className = 'd-flex gap-2';
+                    nameContainer.innerHTML = `
+                        <div class="flex-fill">
+                            <div class="text-muted small mb-1">${firstLbl}</div>
+                            <input type="text" class="form-control" placeholder="${firstLbl}" data-field-id="${field.id}_first" data-field-label="${firstLbl}" ${field.required ? 'required' : ''} />
+                        </div>
+                        <div class="flex-fill">
+                            <div class="text-muted small mb-1">${lastLbl}</div>
+                            <input type="text" class="form-control" placeholder="${lastLbl}" data-field-id="${field.id}_last" data-field-label="${lastLbl}" ${field.required ? 'required' : ''} />
+                        </div>
+                    `;
+                    fieldEl.appendChild(nameContainer);
+                    break;
+
+                case 'address':
+                    const addrContainer = document.createElement('div');
+                    addrContainer.innerHTML = `
+                        <input type="text" class="form-control mb-2" placeholder="Street Address" data-field-id="${field.id}_street" ${field.required ? 'required' : ''} />
+                        <div class="d-flex gap-2">
+                            <input type="text" class="form-control" placeholder="City" data-field-id="${field.id}_city" />
+                            <input type="text" class="form-control" placeholder="State" data-field-id="${field.id}_state" />
+                            <input type="text" class="form-control" placeholder="Zip" data-field-id="${field.id}_zip" />
+                        </div>
+                    `;
+                    fieldEl.appendChild(addrContainer);
+                    break;
+
+                case 'textarea':
+                    input = document.createElement('textarea');
+                    input.className = 'form-control';
+                    input.placeholder = field.placeholder || '';
+                    break;
+
+                case 'dropdown':
+                    input = document.createElement('select');
+                    input.className = 'form-select';
+                    const defaultOpt = document.createElement('option');
+                    defaultOpt.value = '';
+                    defaultOpt.textContent = 'Select...';
+                    input.appendChild(defaultOpt);
+                    if (field.options) {
+                        field.options.forEach(opt => {
+                            const o = document.createElement('option');
+                            o.value = opt;
+                            o.textContent = opt;
+                            input.appendChild(o);
+                        });
+                    }
+                    break;
+
+                case 'checkbox':
+                    const checkboxContainer = document.createElement('div');
+                    if (field.options) {
+                        field.options.forEach(opt => {
+                            const div = document.createElement('div');
+                            div.className = 'form-check';
+                            div.innerHTML = `
+                                <input class="form-check-input" type="checkbox" name="${field.id}" value="${opt}">
+                                <label class="form-check-label">${opt}</label>
+                            `;
+                            checkboxContainer.appendChild(div);
+                        });
+                    }
+                    fieldEl.appendChild(checkboxContainer);
+                    // Add the field as-is, no input variable
+                    fieldEl.setAttribute('data-field-id', field.id);
+                    fieldEl.setAttribute('data-field-label', field.label);
+                    break;
+
+                case 'radio':
+                    const radioContainer = document.createElement('div');
+                    if (field.options) {
+                        field.options.forEach((opt, i) => {
+                            const div = document.createElement('div');
+                            div.className = 'form-check';
+                            div.innerHTML = `
+                                <input class="form-check-input" type="radio" name="${field.id}" value="${opt}" ${i === 0 && field.required ? 'required' : ''}>
+                                <label class="form-check-label">${opt}</label>
+                            `;
+                            radioContainer.appendChild(div);
+                        });
+                    }
+                    fieldEl.appendChild(radioContainer);
+                    fieldEl.setAttribute('data-field-id', field.id);
+                    fieldEl.setAttribute('data-field-label', field.label);
+                    break;
+
+                case 'starrating':
+                    const stars = field.maxStars || 5;
+                    const starHtml = `<div data-field-id="${field.id}" data-rating="0" style="font-size:28px; cursor:pointer;">`;
+                    let starHtmlContent = starHtml;
+                    for (let s = 1; s <= stars; s++) {
+                        starHtmlContent += `<span onclick="setStarRating('${field.id}', ${s})" style="color:#ccc;" id="star_${field.id}_${s}">★</span>`;
+                    }
+                    starHtmlContent += `</div>`;
+                    fieldEl.innerHTML += starHtmlContent;
+                    break;
+
+                case 'appointment':
+                    input = document.createElement('input');
+                    input.type = 'datetime-local';
+                    input.className = 'form-control';
+                    break;
+
+                case 'time':
+                    input = document.createElement('input');
+                    input.type = 'time';
+                    input.className = 'form-control';
+                    break;
+
+                case 'fileupload':
+                case 'image':
+                    input = document.createElement('input');
+                    input.type = 'file';
+                    input.className = 'form-control';
+                    break;
+
+                case 'signature':
+                    fieldEl.innerHTML += `<div style="border:1px dashed #ccc; height:80px; background:#fafbfc; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#aaa;">Signature pad (draw here)</div>`;
+                    break;
+
+                case 'fillblank':
+                    input = document.createElement('input');
+                    input.type = 'text';
+                    input.className = 'form-control';
+                    input.placeholder = 'Fill in the blank';
+                    input.setAttribute('data-field-id', field.id);
+                    break;
+
+                case 'productlist':
+                    fieldEl.innerHTML += `
+                        <div class="border rounded p-2 d-flex justify-content-between align-items-center">
+                            <span>${field.label}</span>
+                            <input type="number" min="0" class="form-control" style="width:80px;" placeholder="Qty" data-field-id="${field.id}" />
+                        </div>`;
+                    break;
+
+                case 'payment': {
+                    const gwLabel = { paypal: 'PayPal', stripe: 'Stripe', square: 'Square' }[field.gateway] || field.gateway;
+                    const amtLabel = field.amountType === 'fixed'
+                        ? `${field.currency} ${Number(field.amount || 0).toFixed(2)}`
+                        : (field.amountType === 'productlist' ? 'Amount based on your selections above' : 'Enter amount below');
+                    fieldEl.innerHTML += `
+                        <div class="payment-box">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="text-muted small">${gwLabel}</span>
+                                <span class="payment-amount-badge">${amtLabel}</span>
+                            </div>
+                            ${field.amountType === 'userdefined' ? `
+                            <input type="number" min="0" step="0.01" class="form-control mb-2" placeholder="Amount (${field.currency})" data-field-id="${field.id}_amount" />` : ''}
+                            <div id="paymentMount_${field.id}"></div>
+                            <div id="paymentMsg_${field.id}" class="payment-message"></div>
+                        </div>`;
+                    break;
+                }
+
+                case 'terms': {
+                    // ✅ ADDED — shows a "View Terms" link beside the checkbox that opens the
+                    // uploaded PDF (or the plain link, whichever was set in the builder) in a new tab.
+                    const termsDocUrl = field.termsDocType === 'pdf' ? field.termsPdfUrl : field.termsLinkUrl;
+                    const termsCheck = document.createElement('div');
+                    termsCheck.className = 'form-check';
+                    termsCheck.innerHTML = `
+                        <input class="form-check-input" type="checkbox" data-field-id="${field.id}" data-field-label="${field.label}" ${field.required ? 'required' : ''}>
+                        <label class="form-check-label">${field.label}</label>
+                        ${termsDocUrl ? `<a href="${termsDocUrl}" target="_blank" rel="noopener noreferrer" class="ms-2 small">${field.termsDocType === 'pdf' ? '📄 View PDF' : '🔗 View Terms'}</a>` : ''}
+                    `;
+                    fieldEl.appendChild(termsCheck);
+                    break;
+                }
+
+                case 'captcha': {
+                    // ✅ ADDED — actually renders the widget for the captcha type chosen in the
+                    // builder instead of falling through to the plain textbox default.
+                    const captchaBox = document.createElement('div');
+                    captchaBox.setAttribute('data-field-id', field.id);
+                    captchaBox.setAttribute('data-captcha-type', field.captchaType || 'hcaptcha');
+
+                    if (field.captchaType === 'recaptcha') {
+                        const testKey = '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'; // Google's public test key — always passes
+                        captchaBox.innerHTML = `<div class="g-recaptcha" data-sitekey="${field.captchaSiteKey || testKey}"></div>`;
+                    } else if (field.captchaType === 'jotcaptcha') {
+                        captchaBox.innerHTML = `
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="jotcaptcha_${field.id}">
+                                <label class="form-check-label" for="jotcaptcha_${field.id}">I am human</label>
+                            </div>`;
+                    } else {
+                        const testKey = '10000000-ffff-ffff-ffff-000000000001'; // hCaptcha's public test key — always passes
+                        captchaBox.innerHTML = `<div class="h-captcha" data-sitekey="${field.captchaSiteKey || testKey}"></div>`;
+                    }
+                    fieldEl.appendChild(captchaBox);
+                    break;
+                }
+
+                default:
+                    input = document.createElement('input');
+                    input.type = (field.type === 'email' ? 'email' : field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : field.type === 'phone' ? 'tel' : 'text');
+                    input.className = 'form-control';
+                    input.placeholder = field.placeholder || '';
+            }
+
+            // Set common attributes for input types
+            if (input && (field.type !== 'checkbox' && field.type !== 'radio' && field.type !== 'starrating' && field.type !== 'signature' && field.type !== 'productlist' && field.type !== 'terms')) {
+                input.setAttribute('data-field-id', field.id);
+                input.setAttribute('data-field-label', field.label);
+                if (field.required) input.required = true;
+                fieldEl.appendChild(input);
+            }
+
+            // ✅ ADDED — Handle half/full width
+            const isHalf = field.width === 'half';
+            const isPayment = field.type === 'payment';
+
+            if (isPayment) {
+                // Payment always full width
+                flushHalfBuffer();
+                container.appendChild(fieldEl);
+            } else if (isHalf) {
+                halfBuffer.push(fieldEl);
+                // If we have 2 half fields, flush them
+                if (halfBuffer.length >= 2) {
+                    flushHalfBuffer();
+                }
+            } else {
+                // Full width field - flush any pending half fields first
+                flushHalfBuffer();
+                const wrapper = document.createElement('div');
+                wrapper.className = 'form-group';
+                wrapper.appendChild(fieldEl);
+                container.appendChild(wrapper);
+            }
+        });
+
+        // Flush any remaining half fields at the end
+        flushHalfBuffer();
+
+        // ✅ ADDED — Apply designer styles after building all fields
+        applyDesignStyles(design);
+
+        // ============================================================
+        // STAR RATING HELPER
+        // ============================================================
+        function setStarRating(fieldId, rating) {
+            const wrap = document.querySelector(`[data-field-id="${fieldId}"]`);
+            if (wrap) wrap.setAttribute('data-rating', rating);
+            for (let i = 1; i <= 10; i++) {
+                const star = document.getElementById(`star_${fieldId}_${i}`);
+                if (star) star.style.color = (i <= rating ? '#ffc107' : '#ccc');
+            }
+        }
+
+        // ============================================================
+        // PAYMENT GATEWAY INTEGRATION
+        // ============================================================
+        const paymentField = schema.find(f => f.type === 'payment');
+        let PaymentBridge = null;
+
+        if (paymentField) {
+            const mountEl = document.getElementById('paymentMount_' + paymentField.id);
+            const msgEl = document.getElementById('paymentMsg_' + paymentField.id);
+
+            function showPaymentError(text) {
+                msgEl.className = 'payment-message payment-error';
+                msgEl.textContent = text;
+                msgEl.style.display = 'block';
+            }
+
+            function showPaymentSuccess(text) {
+                msgEl.className = 'payment-message payment-info';
+                msgEl.textContent = text;
+                msgEl.style.display = 'block';
+            }
+
+            function currentAmount() {
+                if (paymentField.amountType === 'fixed') return paymentField.amount || 0;
+                if (paymentField.amountType === 'userdefined') {
+                    const el = document.querySelector(`[data-field-id="${paymentField.id}_amount"]`);
+                    return el ? parseFloat(el.value || '0') : 0;
+                }
+                return paymentField.amount || 0;
+            }
+
+            const gateways = {
+                stripe: {
+                    init: function () {
+                        if (typeof Stripe === 'undefined') {
+                            showPaymentError('Stripe failed to load.');
+                            return;
+                        }
+                        const stripe = Stripe(paymentField.publicKey);
+                        const elements = stripe.elements();
+                        const card = elements.create('card');
+                        const div = document.createElement('div');
+                        div.style.padding = '10px';
+                        div.style.border = '1px solid #d7dce1';
+                        div.style.borderRadius = '8px';
+                        mountEl.appendChild(div);
+                        card.mount(div);
+                        gateways.stripe._stripe = stripe;
+                        gateways.stripe._card = card;
+                    },
+                    collect: function (done) {
+                        gateways.stripe._stripe.createPaymentMethod({ type: 'card', card: gateways.stripe._card })
+                            .then(function (result) {
+                                if (result.error) {
+                                    done(null, result.error.message);
+                                    return;
+                                }
+                                const amount = currentAmount();
+                                done({
+                                    txnId: result.paymentMethod.id,
+                                    status: 'Completed',
+                                    gateway: paymentField.gateway,
+                                    amount: amount,
+                                    currency: paymentField.currency || 'USD'
+                                }, null);
+                            });
+                    }
+                },
+                paypal: {
+                    init: function () {
+                        if (typeof paypal === 'undefined') {
+                            showPaymentError('PayPal SDK not loaded. Please check your Client ID.');
+                            return;
+                        }
+
+                        let paymentResolve = null;
+                        this._paymentPromise = new Promise((resolve) => {
+                            paymentResolve = resolve;
+                        });
+                        this._paymentResolve = paymentResolve;
+
+                        try {
+                            paypal.Buttons({
+                                createOrder: function (data, actions) {
+                                    const amount = currentAmount();
+                                    if (amount <= 0) {
+                                        showPaymentError('Please enter a valid payment amount.');
+                                        return;
+                                    }
+                                    return actions.order.create({
+                                        purchase_units: [{
+                                            amount: {
+                                                value: amount.toFixed(2),
+                                                currency_code: paymentField.currency || 'USD'
+                                            }
+                                        }]
+                                    });
+                                },
+                                onApprove: function (data, actions) {
+                                    return actions.order.capture().then(function (details) {
+                                        const amount = currentAmount();
+                                        const paymentResult = {
+                                            txnId: details.id,
+                                            status: 'Completed',
+                                            gateway: paymentField.gateway,
+                                            amount: amount,
+                                            currency: paymentField.currency || 'USD'
+                                        };
+                                        showPaymentSuccess('Payment completed successfully!');
+                                        if (paymentResolve) {
+                                            paymentResolve(paymentResult);
+                                        }
+                                        // Auto-submit after successful payment
+                                        doSubmit(paymentResult);
+                                    });
+                                },
+                                onError: function (err) {
+                                    showPaymentError('Payment failed: ' + (err.message || err));
+                                    if (paymentResolve) {
+                                        paymentResolve(null);
+                                    }
+                                },
+                                onCancel: function () {
+                                    showPaymentError('Payment cancelled.');
+                                    if (paymentResolve) {
+                                        paymentResolve(null);
+                                    }
+                                }
+                            }).render(mountEl);
+                        } catch (e) {
+                            showPaymentError('Failed to initialize PayPal: ' + e.message);
+                        }
+                    },
+                    collect: function (done) {
+                        if (this._paymentPromise) {
+                            this._paymentPromise.then((result) => {
+                                if (result) {
+                                    done(result, null);
+                                } else {
+                                    done(null, 'Payment was not completed');
+                                }
+                            });
+                        } else {
+                            done(null, 'PayPal not initialized');
+                        }
+                    }
+                },
+                square: {
+                    init: async function () {
+                        if (typeof Square === 'undefined') {
+                            showPaymentError('Square failed to load.');
+                            return;
+                        }
+                        try {
+                            const payments = Square.payments(paymentField.publicKey, paymentField.gatewayMode === 'live' ? 'production' : 'sandbox');
+                            const card = await payments.card();
+                            await card.attach(mountEl);
+                            gateways.square._card = card;
+                        } catch (e) {
+                            showPaymentError('Failed to initialize Square: ' + e.message);
+                        }
+                    },
+                    collect: function (done) {
+                        if (!gateways.square._card) {
+                            done(null, 'Square not initialized');
+                            return;
+                        }
+                        gateways.square._card.tokenize().then(function (result) {
+                            if (result.status === 'OK') {
+                                const amount = currentAmount();
+                                done({
+                                    txnId: result.token,
+                                    status: 'Completed',
+                                    gateway: paymentField.gateway,
+                                    amount: amount,
+                                    currency: paymentField.currency || 'USD'
+                                }, null);
+                            } else {
+                                done(null, 'Card details were invalid.');
+                            }
+                        }).catch(function (e) {
+                            done(null, 'Payment tokenization failed: ' + e.message);
+                        });
+                    }
+                }
+            };
+
+            const active = gateways[paymentField.gateway];
+            if (active) {
+                if (paymentField.gateway === 'square') {
+                    active.init().catch(function (e) {
+                        showPaymentError('Could not load payment form.');
+                        console.error(e);
+                    });
+                } else {
+                    try {
+                        active.init();
+                    } catch (e) {
+                        showPaymentError('Could not load payment form.');
+                        console.error(e);
+                    }
+                }
+            }
+
+            PaymentBridge = {
+                collect: function (done) {
+                    if (!active) {
+                        done(null, 'Payment gateway not configured for this form.');
+                        return;
+                    }
+                    active.collect(function (result, error) {
+                        if (error) {
+                            showPaymentError(error);
+                            done(null, error);
+                            return;
+                        }
+                        done(result, null);
+                    });
+                },
+                usesOwnButton: paymentField.gateway === 'paypal'
+            };
+
+            // Hide submit button for PayPal
+            if (PaymentBridge.usesOwnButton) {
+                const submitBtn = document.querySelector('.btn-submit-form');
+                if (submitBtn) {
+                    submitBtn.style.display = 'none';
+                }
+            }
+        }
+
+        // ============================================================
+        // FORM SUBMISSION
+        // ============================================================
+        function collectFieldData() {
+            const data = {};
+            schema.forEach(field => {
+                if (field.type === 'heading' || field.type === 'paragraph' || field.type === 'signature' || field.type === 'payment') return;
+
+                if (field.type === 'radio') {
+                    const checked = document.querySelector(`input[name="${field.id}"]:checked`);
+                    data[field.label] = checked ? checked.value : '';
+                }
+                else if (field.type === 'checkbox') {
+                    const checkedBoxes = document.querySelectorAll(`input[name="${field.id}"]:checked`);
+                    data[field.label] = Array.from(checkedBoxes).map(c => c.value).join(', ');
+                }
+                else if (field.type === 'firstname') {
+                    const el = document.querySelector(`[data-field-id="${field.id}"]`);
+                    data[field.label] = el ? el.value : '';
+                }
+                else if (field.type === 'lastname') {
+                    const el = document.querySelector(`[data-field-id="${field.id}"]`);
+                    data[field.label] = el ? el.value : '';
+                }
+                else if (field.type === 'fullname') {
+                    const first = document.querySelector(`[data-field-id="${field.id}_first"]`);
+                    const last = document.querySelector(`[data-field-id="${field.id}_last"]`);
+                    data[field.label] = (first ? first.value : '') + ' ' + (last ? last.value : '');
+                }
+                else if (field.type === 'address') {
+                    const street = document.querySelector(`[data-field-id="${field.id}_street"]`);
+                    const city = document.querySelector(`[data-field-id="${field.id}_city"]`);
+                    const state = document.querySelector(`[data-field-id="${field.id}_state"]`);
+                    const zip = document.querySelector(`[data-field-id="${field.id}_zip"]`);
+                    data[field.label] = `${street ? street.value : ''}, ${city ? city.value : ''}, ${state ? state.value : ''} ${zip ? zip.value : ''}`;
+                }
+                else if (field.type === 'starrating') {
+                    const wrap = document.querySelector(`[data-field-id="${field.id}"]`);
+                    data[field.label] = wrap ? wrap.getAttribute('data-rating') : '0';
+                }
+                else if (field.type === 'fileupload' || field.type === 'image') {
+                    const el = document.querySelector(`[data-field-id="${field.id}"]`);
+                    data[field.label] = el && el.files.length ? el.files[0].name : '';
+                }
+                else if (field.type === 'captcha') {
+                    // ✅ ADDED — record whether the visitor actually passed the captcha
+                    data[field.label] = isCaptchaVerified(field) ? 'Verified' : 'Not verified';
+                }
+                else {
+                    const el = document.querySelector(`[data-field-id="${field.id}"]`);
+                    if (field.type === 'terms') {
+                        data[field.label] = el ? el.checked : false;
+                    } else {
+                        data[field.label] = el ? el.value : '';
+                    }
+                }
+            });
+            return data;
+        }
+
+        // ✅ ADDED — checks the right API for whichever captcha type this form uses
+        function isCaptchaVerified(field) {
+            if (field.captchaType === 'recaptcha') {
+                return typeof grecaptcha !== 'undefined' && grecaptcha.getResponse().length > 0;
+            } else if (field.captchaType === 'jotcaptcha') {
+                const box = document.getElementById('jotcaptcha_' + field.id);
+                return !!(box && box.checked);
+            } else {
+                return typeof hcaptcha !== 'undefined' && hcaptcha.getResponse().length > 0;
+            }
+        }
+
+        function getCaptchaField() {
+            return schema.find(f => f.type === 'captcha');
+        }
+
+        function doSubmit(paymentResult) {
+            const formData = collectFieldData();
+            const payload = {
+                data: formData,
+                payment: paymentResult || null
+            };
+
+            console.log('🔄 Submitting payload:', JSON.stringify(payload, null, 2));
+
+            fetch('/Admin/Form/SubmitForm?formId=' + formId, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+                .then(res => res.json())
+                .then(result => {
+                    if (result.success) {
+                        window.location.href = '/Admin/Form/ThankYou/' + formId;
+                    } else {
+                        alert('Submission failed: ' + result.message);
+                    }
+                })
+                .catch(err => {
+                    alert('An error occurred: ' + err.message);
+                    console.error('Submission error:', err);
+                });
+        }
+
+        // ============================================================
+        // EVENT HANDLERS
+        // ============================================================
+        document.getElementById('dynamicForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            // ✅ ADDED — block submission until the captcha is actually solved
+            const captchaField = getCaptchaField();
+            if (captchaField && !isCaptchaVerified(captchaField)) {
+                alert('Please verify that you are human.');
+                return;
+            }
+
+            console.log('📝 Form submitted, PaymentBridge:', PaymentBridge);
+
+            if (!PaymentBridge) {
+                doSubmit(null);
+                return;
+            }
+
+            if (PaymentBridge.usesOwnButton) {
+                console.log('💰 PayPal form - waiting for PayPal button click');
+                return;
+            }
+
+            // For Stripe and Square - collect payment first
+            PaymentBridge.collect(function (result, error) {
+                if (error) {
+                    console.error('❌ Payment error:', error);
+                    return;
+                }
+                console.log('✅ Payment collected:', result);
+                doSubmit(result);
+            });
+        });
+
+        // Load PayPal SDK if needed
+        if (paymentField && paymentField.gateway === 'paypal') {
+            function loadPayPalSDK(clientId, currency, callback) {
+                if (window.paypal) {
+                    callback();
+                    return;
+                }
+
+                var existingScript = document.getElementById('paypal-sdk-script');
+                if (existingScript) {
+                    existingScript.remove();
+                }
+
+                var script = document.createElement('script');
+                script.id = 'paypal-sdk-script';
+                script.src = 'https://www.paypal.com/sdk/js?client-id=' + encodeURIComponent(clientId) + '&currency=' + encodeURIComponent(currency || 'USD');
+
+                var timeout = setTimeout(function () {
+                    showPaymentError('PayPal SDK load timed out.');
+                }, 10000);
+
+                script.onload = function () {
+                    clearTimeout(timeout);
+                    if (window.paypal) {
+                        callback();
+                    } else {
+                        showPaymentError('PayPal SDK loaded but window.paypal is undefined.');
+                    }
+                };
+
+                script.onerror = function () {
+                    clearTimeout(timeout);
+                    showPaymentError('PayPal SDK failed to load.');
+                };
+
+                document.head.appendChild(script);
+            }
+
+            loadPayPalSDK(paymentField.publicKey, paymentField.currency || 'USD', function () {
+                if (gateways.paypal && gateways.paypal.init) {
+                    try {
+                        gateways.paypal.init();
+                    } catch (e) {
+                        console.error('Failed to initialize PayPal:', e);
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
