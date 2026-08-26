@@ -76,20 +76,28 @@
                                 <input type="text" class="form-control" name="Subject" id="Subject" value="@objTemplates.Subject" onkeypress="return Common.isChar(event)">
                             </div>
                         </div>
-                        <div class="col-lg-3 col-md-6">
-                            <div class="input-box">
-                                <label class="form-label">Admin Email : </label>
-                                <input type="text" class="form-control" name="BCC" id="BCC" value="@objTemplates.BCC"  placeholder="e.g. someone@example.com, another@example.com">
-                                <small class="text-muted">Comma-separated email addresses.</small>
+                        @if (headingLabel != "User Mail")
+
+
+
+                        {
+
+                            <div class="col-lg-3 col-md-6">
+                                <div class="input-box">
+                                    <label class="form-label">Admin Email : </label>
+                                    <input type="text" class="form-control" name="BCC" id="BCC" value="@objTemplates.BCC"  placeholder="e.g. someone@example.com, another@example.com">
+                                    <small class="text-muted">Comma-separated email addresses.</small>
+                                </div>
                             </div>
-                        </div>
-                        <div class="col-lg-3 col-md-6 justify-content-end">
+
+                        }
+                        <div class="col-lg-3 col-md-6 col-lg-3 col-4 text-end ms-auto">
                             <div class="input-box">
                                 <label class="form-label">&nbsp;</label>
                                 <label class="form-label">&nbsp;</label>
                                 <button type="button"
                                         class="btn-save-form"
-                                        style="width:81%;"
+                                        style="width:53%;"
                                         onclick="window.location.href='@Url.Action("Index", "Form")'">
                                     ← Back to Form List
                                 </button>

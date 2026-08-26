@@ -80,7 +80,7 @@ namespace ArjunFormBuilder.Areas.Admin.Controllers
             {
                 TempData["message"] = "<div class=\"alert alert-danger\">" + ex.Message + "</div>";
             }
-            return RedirectToAction("EditThankYouPage", new { id = FormId }); 
+            return RedirectToAction("EditThankYouPage", new { id = FormId });
         }
 
         [Authorize]
@@ -148,6 +148,44 @@ namespace ArjunFormBuilder.Areas.Admin.Controllers
                 string relativeUrl = objappinfo.BaseUrl + "Content/uploads/FormTerms/" + fileName;
 
                 return Json(new { success = true, url = relativeUrl });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        // ✅ ADDED — saves a visitor's "Upload File"/"Image" field to disk when they submit a
+        // form, and returns a URL so the submission can store something real instead of just a
+        // filename. Not [Authorize] — the public share/embed link (Fill, above) has no login, so
+        // anonymous visitors filling out the form need to be able to call this too, same as
+        // SubmitForm itself.
+        [HttpPost]
+        public JsonResult UploadFormFieldFile(IFormFile file)
+        {
+            try
+            {
+                if (file == null || file.Length == 0)
+                    return Json(new { success = false, message = "No file selected" });
+
+                int status1 = 0;
+                BLL.AppInfo _appinfo = new BLL.AppInfo();
+                var objappinfo = _appinfo.GetAppInfoDetails(ref status1);
+
+                string ext = Path.GetExtension(file.FileName);
+                string fileName = Guid.NewGuid().ToString("N") + ext;
+
+                string normalPath = Path.Combine(objappinfo.UploadPath, "uploads", "FormSubmissionFiles", fileName);
+                Directory.CreateDirectory(Path.GetDirectoryName(normalPath));
+
+                using (var stream = new FileStream(normalPath, FileMode.Create))
+                {
+                    file.CopyTo(stream);
+                }
+
+                string relativeUrl = objappinfo.BaseUrl + "Content/uploads/FormSubmissionFiles/" + fileName;
+
+                return Json(new { success = true, url = relativeUrl, fileName = file.FileName });
             }
             catch (Exception ex)
             {
@@ -229,6 +267,24 @@ namespace ArjunFormBuilder.Areas.Admin.Controllers
                 return Json(new { ok = false, messageType = "error", message = "Failed transaction." });
             }
         }
+        [Authorize]
+        [HttpPost]
+        public JsonResult UpdateFormEnable(Int64 FormId)
+        {
+            int status = 0;
+            try
+            {
+                _formBLL.UpdateFormEnable(FormId, ref status);
+                if (status == 1)
+                    return Json(new { ok = true, messageType = "success", message = "FormEnable updated successfully" });
+                else
+                    return Json(new { ok = false, messageType = "error", message = "Failed to update FormEnable" });
+            }
+            catch
+            {
+                return Json(new { ok = false, messageType = "error", message = "Failed transaction." });
+            }
+        }
 
         [Authorize]
         [HttpPost]
@@ -248,6 +304,24 @@ namespace ArjunFormBuilder.Areas.Admin.Controllers
                 return Json(new { ok = false, messageType = "error", message = "Failed transaction." });
             }
         }
+        [Authorize]
+        [HttpPost]
+        public JsonResult DeleteFormSubmission(Int64 SubmissionId)
+        {
+            int status = 0;
+            try
+            {
+                _formBLL.DeleteFormSubmission(SubmissionId, ref status);
+                if (status == 1)
+                    return Json(new { ok = true, messageType = "success", message = "Record deleted successfully" });
+                else
+                    return Json(new { ok = false, messageType = "error", message = "Failed to delete Record" });
+            }
+            catch
+            {
+                return Json(new { ok = false, messageType = "error", message = "Failed transaction." });
+            }
+        }
 
         [Authorize]
         public ActionResult RenderForm(Int64 id)
@@ -256,6 +330,40 @@ namespace ArjunFormBuilder.Areas.Admin.Controllers
             var form = _formBLL.GetFormSchema(id, ref status);
             if (status != 1 || form == null) return NotFound();
 
+            PopulateRenderFormViewBags(form);
+
+            return View(form);
+        }
+  
+        public ActionResult Fill(string id)
+        {
+            Int64 formId;
+            try
+            {
+                formId = BLL.FormLinkObfuscator.DecryptFormId(id);
+            }
+            catch
+            {
+                return NotFound();
+            }
+
+            int status = 0;
+            var form = _formBLL.GetFormSchema(formId, ref status);
+            if (status != 1 || form == null) return NotFound();
+
+            if (!form.IsFormEnable)
+            {
+                ViewBag.FormClosed = true;
+                return View("RenderForm", form);
+            }
+
+            PopulateRenderFormViewBags(form);
+
+            return View("RenderForm", form);
+        }
+
+        private void PopulateRenderFormViewBags(Entities.FormModel form)
+        {
             try
             {
                 var fields = System.Text.Json.JsonSerializer.Deserialize<List<System.Text.Json.JsonElement>>(form.FormSchema);
@@ -293,13 +401,11 @@ namespace ArjunFormBuilder.Areas.Admin.Controllers
             }
             catch
             {
-                ViewBag.PaymentEnabled = false; 
+                ViewBag.PaymentEnabled = false;
                 ViewBag.CaptchaEnabled = false;
             }
-
-
-            return View(form);
         }
+
         [HttpPost]
         public ActionResult SubmitForm(Int64 formId, [FromBody] Entities.FormSubmitRequest request)
         {
@@ -420,14 +526,21 @@ namespace ArjunFormBuilder.Areas.Admin.Controllers
 
             var schemaFields = System.Text.Json.JsonSerializer.Deserialize<List<Dictionary<string, object>>>(form.FormSchema);
 
-            var summaryFields = schemaFields
+            // Show only these fields, in this order, matched by label (not position in the form)
+            string[] desiredLabels = { "First Name", "Last Name", "Email", "Phone Number" };
+
+            var allFields = schemaFields
                 .Where(f => f["type"].ToString() != "heading" && f["type"].ToString() != "paragraph")
-                .Take(3)
                 .Select(f => new { Id = f["id"].ToString(), Label = f["label"].ToString() })
                 .ToList();
 
+            var summaryFields = desiredLabels
+                .Select(label => allFields.FirstOrDefault(f => string.Equals(f.Label, label, StringComparison.OrdinalIgnoreCase)))
+                .Where(f => f != null)
+                .ToList();
+
             ViewBag.FormId = formId;
-            ViewBag.FormTitle = form.Title; 
+            ViewBag.FormTitle = form.Title;
             ViewBag.SummaryFields = summaryFields;
             ViewBag.sortcolumn = SortColumn;
             ViewBag.sortorder = SortOrder.ToLower();
@@ -496,13 +609,136 @@ namespace ArjunFormBuilder.Areas.Admin.Controllers
             var form = _formBLL.GetFormSchema(id, ref status);
             ViewBag.LogoUrl = (form != null ? form.LogoUrl : null);
             ViewBag.Title = (form != null ? form.Title : "Form");
-            ViewBag.ThankYouContent = (form != null ? form.ThankYouContent : null); 
+            ViewBag.ThankYouContent = (form != null ? form.ThankYouContent : null);
             return View();
         }
-
-        [Authorize]
         [Authorize]
         public IActionResult FormSubmissionsExportToExcel(string search = "", string sortColumn = "SubmittedDate", string sortOrder = "DESC", long formId = 0)
+        {
+            try
+            {
+                string sort = !string.IsNullOrEmpty(sortColumn)
+                                ? $"{sortColumn} {sortOrder}"
+                                : "";
+
+                // 1. Get DataTable from DAL (Filtered by formId)
+                DataTable dtRaw = _DFormSubmissions.FormSubmissionsExportToExcel(search, sort, formId);
+
+                if (dtRaw == null || dtRaw.Rows.Count == 0)
+                {
+                    TempData["message"] = $"Export failed: No records found.";
+                    return RedirectToAction("FormSubmissions", new { formId = formId });
+                }
+
+                DataTable dtFinal = new DataTable();
+                dtFinal.Columns.Add("Submission Id", typeof(string));
+                dtFinal.Columns.Add("Submitted By", typeof(string));
+                dtFinal.Columns.Add("Submitted Date", typeof(string));
+
+                bool columnsAdded = false;
+
+                foreach (DataRow row in dtRaw.Rows)
+                {
+                    string jsonData = row["SubmittedData"].ToString();
+
+                    var submissionData = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, object>>(jsonData);
+
+                    if (submissionData != null && !columnsAdded)
+                    {
+                        foreach (var key in submissionData.Keys)
+                        {
+                            if (!dtFinal.Columns.Contains(key))
+                            {
+                                dtFinal.Columns.Add(key, typeof(string));
+                            }
+                        }
+                        columnsAdded = true;
+                    }
+
+                    // Payment columns added after dynamic form columns are known
+                    if (!dtFinal.Columns.Contains("Payment Status"))
+                    {
+                        dtFinal.Columns.Add("Payment Status", typeof(string));
+                        dtFinal.Columns.Add("Payment Txn Id", typeof(string));
+                        dtFinal.Columns.Add("Payment Gateway", typeof(string));
+                        dtFinal.Columns.Add("Payment Amount", typeof(string));
+                    }
+
+                    DataRow newRow = dtFinal.NewRow();
+                    newRow["Submission Id"] = row["SubmissionId"];
+                    newRow["Submitted By"] = row["SubmittedBy"];
+                    newRow["Submitted Date"] = Convert.ToDateTime(row["SubmittedDate"]).ToString("dd/MM/yyyy hh:mm tt");
+
+                    if (submissionData != null)
+                    {
+                        foreach (var kvp in submissionData)
+                        {
+                            if (dtFinal.Columns.Contains(kvp.Key))
+                            {
+                                newRow[kvp.Key] = kvp.Value?.ToString() ?? "";
+                            }
+                        }
+                    }
+
+                    newRow["Payment Status"] = row["PaymentStatus"] != DBNull.Value ? row["PaymentStatus"].ToString() : "";
+                    newRow["Payment Txn Id"] = row["PaymentTxnId"] != DBNull.Value ? row["PaymentTxnId"].ToString() : "";
+                    newRow["Payment Gateway"] = row["PaymentGateway"] != DBNull.Value ? row["PaymentGateway"].ToString() : "";
+                    newRow["Payment Amount"] = row["PaymentAmount"] != DBNull.Value ? row["PaymentAmount"].ToString() : "";
+
+                    dtFinal.Rows.Add(newRow);
+                }
+
+                using (var workbook = new ClosedXML.Excel.XLWorkbook())
+                {
+                    var worksheet = workbook.Worksheets.Add("FormSubmissions-Export");
+
+                    for (int col = 0; col < dtFinal.Columns.Count; col++)
+                    {
+                        var headerCell = worksheet.Cell(1, col + 1);
+                        headerCell.Value = dtFinal.Columns[col].ColumnName;
+
+                        headerCell.Style.Font.Bold = true;
+                        headerCell.Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.FromArgb(173, 216, 230);
+                    }
+
+                    for (int row = 0; row < dtFinal.Rows.Count; row++)
+                    {
+                        for (int col = 0; col < dtFinal.Columns.Count; col++)
+                        {
+                            worksheet.Cell(row + 2, col + 1).Value = dtFinal.Rows[row][col]?.ToString() ?? "";
+                        }
+                    }
+
+                    worksheet.Columns().AdjustToContents();
+
+                    using (var stream = new MemoryStream())
+                    {
+                        workbook.SaveAs(stream);
+                        var content = stream.ToArray();
+
+                        int status = 0;
+                        var form = _formBLL.GetFormSchema(formId, ref status);
+                        string formTitle = form != null ? form.Title : "Form";
+                        string safeTitle = string.Join("_", formTitle.Split(Path.GetInvalidFileNameChars()));
+
+                        string fileName = $"FormSubmissions-{safeTitle}-{DateTime.UtcNow:dd-MM-yyyy}.xlsx";
+
+                        return File(
+                            content,
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            fileName
+                        );
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                TempData["message"] = $"Export failed: {ex.Message}";
+                return RedirectToAction("FormSubmissions", new { formId = formId });
+            }
+        }
+        [Authorize]
+        public IActionResult FormSubmissionsExportToExcelbkp(string search = "", string sortColumn = "SubmittedDate", string sortOrder = "DESC", long formId = 0)
         {
             try
             {

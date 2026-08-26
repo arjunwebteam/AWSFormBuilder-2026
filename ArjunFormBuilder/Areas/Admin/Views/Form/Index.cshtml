@@ -2,6 +2,10 @@
     ViewBag.Title = "Forms";
     Layout = "~/Areas/Admin/Views/Shared/_MainLayout.cshtml";
     Int64 ChapterId = ViewBag.ChapterId;
+
+    // ✅ ADDED — reusable share link template for the Publish modal, pointed at the new
+    // Fill action so the URL carries an obfuscated token instead of the raw numeric FormId
+    var publishLinkTemplate = Url.Action("Fill", "Form", new { id = "__TOKEN__" }, Context.Request.Scheme);
 }
 
 <input id="hdnPageNo" type="hidden" value="1" />
@@ -32,6 +36,95 @@
     </div>
 
     <div id="divForms" class="box-body table-responsive"></div>
+
+    @* ✅ ADDED — Publish popup: Link / Share / Embed tabs *@
+    <div class="modal fade" id="publishModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content publish-modal-content">
+                <div class="publish-modal-header">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="publish-icon-badge"><i class="bi bi-share-fill"></i></span>
+                        <div>
+                            <div class="publish-modal-title">PUBLISH</div>
+                            <div class="publish-modal-subtitle">Add your form to your website and share it on social platforms.</div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <div class="publish-tabs">
+                    <div class="publish-tab active" data-tab="link" onclick="switchPublishTab('link')">LINK</div>
+                    <div class="publish-tab" data-tab="share" onclick="switchPublishTab('share')">SHARE</div>
+                    <div class="publish-tab" data-tab="embed" onclick="switchPublishTab('embed')">EMBED</div>
+                </div>
+
+                <div class="modal-body publish-modal-body">
+
+                    @* -------- LINK TAB -------- *@
+                    <div class="publish-pane" id="publishPane_link">
+                        <div class="publish-info-row">
+                            <span class="publish-icon-badge publish-icon-badge-green"><i class="bi bi-link-45deg"></i></span>
+                            <div>
+                                <div class="publish-info-title">DIRECT LINK OF YOUR FORM</div>
+                                <div class="publish-info-sub">Your form is securely published and ready to use at this address.</div>
+                            </div>
+                        </div>
+
+                        <div class="publish-card">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="publish-card-label">SHARE WITH LINK</span>
+                                <span class="publish-badge"><i class="bi bi-lock-fill"></i> Public Form</span>
+                            </div>
+                            <div class="publish-link-box">
+                                <i class="bi bi-link-45deg text-muted"></i>
+                                <input type="text" id="publishLinkInput" class="publish-link-input" readonly />
+                            </div>
+                            <div class="d-flex gap-2 justify-content-end mt-3">
+                                <button type="button" class="btn publish-btn-green" onclick="copyPublishLink()"><i class="bi bi-clipboard-check"></i> Copy Link</button>
+                                <button type="button" class="btn publish-btn-blue" onclick="openPublishLink()"><i class="bi bi-box-arrow-up-right"></i> Open in New Tab</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    @* -------- SHARE TAB -------- *@
+                    <div class="publish-pane d-none" id="publishPane_share">
+                        <div class="publish-card">
+                            <div class="publish-card-label mb-3">SHARE FORM</div>
+                            <p class="publish-info-sub">Share your form link in various social posts and through email.</p>
+                            <div class="publish-share-grid">
+                                <div class="publish-share-icon publish-share-whatsapp" onclick="sharePublish('whatsapp')" title="WhatsApp"><i class="bi bi-whatsapp"></i></div>
+                                <div class="publish-share-icon publish-share-facebook" onclick="sharePublish('facebook')" title="Facebook"><i class="bi bi-facebook"></i></div>
+                                <div class="publish-share-icon publish-share-linkedin" onclick="sharePublish('linkedin')" title="LinkedIn"><i class="bi bi-linkedin"></i></div>
+                                <div class="publish-share-icon publish-share-twitter" onclick="sharePublish('twitter')" title="X"><i class="bi bi-twitter-x"></i></div>
+                                <div class="publish-share-icon publish-share-email" onclick="sharePublish('email')" title="Email"><i class="bi bi-envelope-fill"></i></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    @* -------- EMBED TAB -------- *@
+                    <div class="publish-pane d-none" id="publishPane_embed">
+                        <div class="publish-card">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="publish-card-label">EMBED</span>
+                                <select class="form-select form-select-sm publish-embed-select" id="publishEmbedType" onchange="updatePublishEmbedCode()" style="width:auto;">
+                                    <option value="iframe">iFrame</option>
+                                    <option value="script">Script Embed</option>
+                                </select>
+                            </div>
+                            <p class="publish-info-sub">Copy and paste this snippet into your page's HTML to put your form on your website.</p>
+                            <div class="publish-embed-box">
+                                <code id="publishEmbedCode"></code>
+                            </div>
+                            <div class="d-flex justify-content-end mt-3">
+                                <button type="button" class="btn publish-btn-green" onclick="copyEmbedCode()"><i class="bi bi-clipboard-check"></i> Copy Code</button>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script>
         $(document).ready(function () {
@@ -76,6 +169,17 @@
                 }
             });
         }
+        function UpdateFormEnable(FormId) {
+            $.ajax({
+                type: "POST",
+                url: '@Url.Action("UpdateFormEnable", "Form")',
+                data: { FormId: FormId },
+                success: function (result) {
+                    showLobiboxNotification(result.messageType, result.message);
+                    FormsBind($('#hdnPageNo').val());
+                }
+            });
+        }
 
         function DeleteForm(FormId) {
             var val2 = confirm("Do you want to delete this form?");
@@ -91,5 +195,299 @@
                 });
             }
         }
+
+        // ============================================================
+        // ✅ ADDED — PUBLISH MODAL (Link / Share / Embed)
+        // ============================================================
+        var publishLinkTemplate = '@Html.Raw(publishLinkTemplate)';
+        var currentPublishLink = '';
+
+        function openPublishModal(token, title) {
+            // ✅ FIXED — this was still replacing '__FORMID__', but the template placeholder
+            // was changed to '__TOKEN__' when the link moved to the encrypted-token Fill route.
+            // That mismatch meant the token never got substituted (Copy Link / Open in New Tab
+            // both produced a literal ".../Fill/__TOKEN__" URL, hence the 404).
+            currentPublishLink = publishLinkTemplate.replace('__TOKEN__', token);
+
+            $('#publishLinkInput').val(currentPublishLink);
+            updatePublishEmbedCode();
+            switchPublishTab('link');
+
+            var modalEl = document.getElementById('publishModal');
+            var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            modal.show();
+        }
+
+        function switchPublishTab(tab) {
+            $('.publish-tab').removeClass('active');
+            $('.publish-tab[data-tab="' + tab + '"]').addClass('active');
+            $('.publish-pane').addClass('d-none');
+            $('#publishPane_' + tab).removeClass('d-none');
+        }
+
+        function copyPublishLink() {
+            var input = document.getElementById('publishLinkInput');
+            input.select();
+            input.setSelectionRange(0, 99999);
+            navigator.clipboard.writeText(input.value);
+            showLobiboxNotification('success', 'Link copied to clipboard');
+        }
+
+        function openPublishLink() {
+            window.open(currentPublishLink, '_blank');
+        }
+
+        function updatePublishEmbedCode() {
+            var type = $('#publishEmbedType').val();
+            var code = type === 'script'
+                ? '<script type="text/javascript" src="' + currentPublishLink + '"><' + '/script>'
+                : '<iframe src="' + currentPublishLink + '" style="width:100%;height:650px;border:none;"></iframe>';
+            $('#publishEmbedCode').text(code);
+        }
+
+        function copyEmbedCode() {
+            var code = document.getElementById('publishEmbedCode').innerText;
+            navigator.clipboard.writeText(code);
+            showLobiboxNotification('success', 'Embed code copied');
+        }
+
+        function sharePublish(platform) {
+            var url = encodeURIComponent(currentPublishLink);
+            var text = encodeURIComponent('Please fill out this form');
+            var shareUrl = '';
+            switch (platform) {
+                case 'whatsapp': shareUrl = 'https://wa.me/?text=' + text + '%20' + url; break;
+                case 'facebook': shareUrl = 'https://www.facebook.com/sharer/sharer.php?u=' + url; break;
+                case 'linkedin': shareUrl = 'https://www.linkedin.com/sharing/share-offsite/?url=' + url; break;
+                case 'twitter': shareUrl = 'https://twitter.com/intent/tweet?url=' + url + '&text=' + text; break;
+                case 'email': shareUrl = 'mailto:?subject=' + text + '&body=' + url; break;
+            }
+            if (shareUrl) window.open(shareUrl, '_blank', 'width=600,height=450');
+        }
     </script>
+
+    <style>
+        /* ✅ ADDED — Publish modal styling */
+        .publish-modal-content {
+            border-radius: 14px;
+            overflow: hidden;
+            border: none;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+        }
+
+        .publish-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 22px;
+            border-bottom: 1px solid #eef0f4;
+        }
+
+        .publish-modal-title {
+            font-weight: 700;
+            font-size: 13px;
+            letter-spacing: .5px;
+            color: #1c2b39;
+        }
+
+        .publish-modal-subtitle {
+            font-size: 12px;
+            color: #8a94a6;
+        }
+
+        .publish-icon-badge {
+            width: 34px;
+            height: 34px;
+            border-radius: 9px;
+            background: #2f6feb;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            flex-shrink: 0;
+        }
+
+        .publish-icon-badge-green {
+            background: #21a35a;
+        }
+
+        .publish-tabs {
+            display: flex;
+            gap: 4px;
+            padding: 0 22px;
+            border-bottom: 1px solid #eef0f4;
+            background: #fafbfd;
+        }
+
+        .publish-tab {
+            padding: 12px 14px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: .4px;
+            color: #8a94a6;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all .15s ease;
+        }
+
+            .publish-tab:hover {
+                color: #2f6feb;
+            }
+
+            .publish-tab.active {
+                color: #2f6feb;
+                border-bottom-color: #2f6feb;
+            }
+
+        .publish-modal-body {
+            padding: 22px;
+            background: #fafbfd;
+        }
+
+        .publish-info-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+
+        .publish-info-title {
+            font-weight: 700;
+            font-size: 13px;
+            color: #1c2b39;
+        }
+
+        .publish-info-sub {
+            font-size: 12px;
+            color: #8a94a6;
+            margin-bottom: 0;
+        }
+
+        .publish-card {
+            background: #fff;
+            border: 1px solid #eef0f4;
+            border-radius: 12px;
+            padding: 18px;
+        }
+
+        .publish-card-label {
+            font-weight: 700;
+            font-size: 12px;
+            letter-spacing: .4px;
+            color: #1c2b39;
+        }
+
+        .publish-badge {
+            background: #eaf7ef;
+            color: #21a35a;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 20px;
+        }
+
+        .publish-link-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid #e3e6ec;
+            border-radius: 8px;
+            padding: 10px 12px;
+            background: #f7f8fa;
+        }
+
+        .publish-link-input {
+            border: none;
+            background: transparent;
+            flex: 1;
+            font-size: 13px;
+            color: #333;
+            outline: none;
+        }
+
+        .publish-btn-green {
+            background: #21a35a;
+            color: #fff;
+            font-size: 13px;
+            font-weight: 600;
+            border: none;
+            border-radius: 7px;
+            padding: 8px 16px;
+        }
+
+            .publish-btn-green:hover {
+                background: #1b8a4c;
+                color: #fff;
+            }
+
+        .publish-btn-blue {
+            background: #2f6feb;
+            color: #fff;
+            font-size: 13px;
+            font-weight: 600;
+            border: none;
+            border-radius: 7px;
+            padding: 8px 16px;
+        }
+
+            .publish-btn-blue:hover {
+                background: #255bc4;
+                color: #fff;
+            }
+
+        .publish-share-grid {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .publish-share-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 18px;
+            cursor: pointer;
+            transition: transform .15s ease;
+        }
+
+            .publish-share-icon:hover {
+                transform: translateY(-2px);
+            }
+
+        .publish-share-whatsapp {
+            background: #25D366;
+        }
+
+        .publish-share-facebook {
+            background: #1877F2;
+        }
+
+        .publish-share-linkedin {
+            background: #0A66C2;
+        }
+
+        .publish-share-twitter {
+            background: #000;
+        }
+
+        .publish-share-email {
+            background: #6b7280;
+        }
+
+        .publish-embed-box {
+            background: #10131a;
+            color: #cfe3ff;
+            border-radius: 8px;
+            padding: 14px;
+            font-size: 12px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+    </style>
 </div>

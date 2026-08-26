@@ -6,51 +6,36 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
 
 <div class="container-fluid mt-3">
-    <!-- ✅ CHANGED — header rows wrapped in fb-header-sticky so they stay fixed
-         at the top of the viewport instead of scrolling away with the page. -->
-    <div class="fb-header-sticky">
-        <div class="fb-toolbar d-flex justify-content-end">
-            <button class="btn-save-form" onclick="window.location.href='@Url.Action("Index", "Form")'">
-                ← Back to Form List
-            </button>
-        </div>
-
-        <div class="fb-toolbar d-flex justify-content-between align-items-center flex-wrap gap-3">
-            <h4 class="m-0" style="color:#1c2b39; font-weight:700;">Form Builder</h4>
-
-            <div class="d-flex align-items-center gap-3 flex-wrap">
-                <div class="fb-logo-inline d-flex align-items-center gap-2">
-                    <label class="m-0 fw-semibold" style="font-size:21px; color:#1c2b39; white-space:nowrap;">Form Logo</label>
-                    <input type="file" id="logoFile" class="form-control form-control-sm" accept="image/*" onchange="uploadLogo()" style="width:200px;" />
-                    <img id="logoPreview" src="" style="display:none; max-height:38px; border-radius:6px;" />
-                    <button type="button" id="logoDeleteBtn" class="btn btn-sm btn-outline-danger" style="display:none;" onclick="deleteLogo()" title="Remove Logo">🗑</button>
-                </div>
-
-                <input type="text" id="formTitle" class="form-control fb-title-input" style="width:220px;" placeholder="Form Title" />
-                <button class="btn-save-form" onclick="saveForm()">Save Form</button>
-                <button class="btn-design-toggle" onclick="toggleDesignPanel()">🎨 Form Designer</button>
-                @if (ViewBag.FormId != 0)
-                {
-                <button type="button"
-                        class="btn-save-form"
-                        onclick="window.open('@Url.Action("RenderForm", "Form", new { id = ViewBag.FormId })', '_blank');">
-                    View Form
-                </button>
-                }
-                @if (ViewBag.FormId != 0)
-                {
-                    <button type="button"
-                            class="btn-save-form"
-                            onclick="window.open('@Url.Action("EditThankYouPage", "Form", new { id = ViewBag.FormId })', '_blank');">
-                        Thank You Page
-                    </button>
-                }
-
-
-            </div>
-        </div>
-        <input type="hidden" id="logoUrl" value="" />
+    <div class="fb-toolbar d-flex justify-content-end">
+        <button class="btn-save-form" onclick="window.location.href='@Url.Action("Index", "Form")'">
+            ← Back to Form List
+        </button>
     </div>
+
+    <div class="fb-toolbar d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <h4 class="m-0" style="color:#1c2b39; font-weight:700;">Form Builder</h4>
+
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+            <div class="fb-logo-inline d-flex align-items-center gap-2">
+                <label class="m-0 fw-semibold" style="font-size:21px; color:#1c2b39; white-space:nowrap;">Form Logo</label>
+                <input type="file" id="logoFile" class="form-control form-control-sm" accept="image/*" onchange="uploadLogo()" style="width:200px;" />
+                <img id="logoPreview" src="" style="display:none; max-height:38px; border-radius:6px;" />
+                <button type="button" id="logoDeleteBtn" class="btn btn-sm btn-outline-danger" style="display:none;" onclick="deleteLogo()" title="Remove Logo">🗑</button>
+            </div>
+
+            <input type="text" id="formTitle" class="form-control fb-title-input" style="width:220px;" placeholder="Form Title" />
+             <button class="btn-save-form" onclick="saveForm()">Save Form</button>
+            <button class="btn-design-toggle" onclick="toggleDesignPanel()">🎨 Form Designer</button>
+
+            <button type="button"
+                    class="btn-save-form"
+                    onclick="window.open('@Url.Action("RenderForm", "Form", new { id = ViewBag.FormId })', '_blank');">
+                View Form
+            </button>
+           
+        </div>
+    </div>
+    <input type="hidden" id="logoUrl" value="" />
 
     <div class="fb-wrapper">
         <div class="fb-palette">
@@ -1171,12 +1156,7 @@
                 <label class="form-label">Field Label</label>
                 <input class="form-control mb-2" value="${field.label}" onchange="updateField('${field.id}','label',this.value)" />
 
-                <label class="form-label">Label Alignment</label>
-                <div class="fb-fieldalign-toggle">
-                    <div class="fb-fieldalign-btn ${alignment === 'left' ? 'active' : ''}" onclick="updateField('${field.id}','labelAlignment','left'); renderProps();">LEFT</div>
-                    <div class="fb-fieldalign-btn ${alignment === 'right' ? 'active' : ''}" onclick="updateField('${field.id}','labelAlignment','right'); renderProps();">RIGHT</div>
-                    <div class="fb-fieldalign-btn ${alignment === 'top' ? 'active' : ''}" onclick="updateField('${field.id}','labelAlignment','top'); renderProps();">TOP</div>
-                </div>
+                
 
                 <label class="form-label">Captcha Type</label>
                 <div class="d-flex gap-2 mb-2">
@@ -1344,65 +1324,65 @@
     // ============================================================
     @if (ViewBag.FormSchema != null)
     {
-                        <text>
-                        (function loadExistingForm() {
-                            try {
-                                const savedFields = JSON.parse(@Html.Raw(Json.Serialize((string)ViewBag.FormSchema)));
-                                formFields = savedFields || [];
+                    <text>
+                    (function loadExistingForm() {
+                        try {
+                            const savedFields = JSON.parse(@Html.Raw(Json.Serialize((string)ViewBag.FormSchema)));
+                            formFields = savedFields || [];
 
-                                // ✅ FIXED — "fieldCounter = formFields.length" undercounts once any field
-                                // has ever been deleted (e.g. 7 fields left but the highest ID ever issued
-                                // was f12). The next addField() then reused an ID already in use by an
-                                // existing field, so selecting/deleting one silently affected both —
-                                // that's the "two fields highlighted together" bug. Base it on the highest
-                                // numeric suffix actually present instead, so new IDs are always unique.
-                                fieldCounter = formFields.reduce(function (max, f) {
-                                    const m = /^f(\d+)$/.exec(f.id || '');
-                                    return m ? Math.max(max, parseInt(m[1], 10)) : max;
-                                }, 0);
+                            // ✅ FIXED — "fieldCounter = formFields.length" undercounts once any field
+                            // has ever been deleted (e.g. 7 fields left but the highest ID ever issued
+                            // was f12). The next addField() then reused an ID already in use by an
+                            // existing field, so selecting/deleting one silently affected both —
+                            // that's the "two fields highlighted together" bug. Base it on the highest
+                            // numeric suffix actually present instead, so new IDs are always unique.
+                            fieldCounter = formFields.reduce(function (max, f) {
+                                const m = /^f(\d+)$/.exec(f.id || '');
+                                return m ? Math.max(max, parseInt(m[1], 10)) : max;
+                            }, 0);
 
-                                // ✅ ADDED — repairs any form saved earlier while that bug was live: if two
-                                // fields already share an ID (or a field has no ID), give the extra one(s)
-                                // a fresh unique ID now, so this form stops mis-highlighting immediately.
-                                const seenFieldIds = new Set();
-                                formFields.forEach(function (f) {
-                                    if (!f.id || seenFieldIds.has(f.id)) {
-                                        fieldCounter++;
-                                        f.id = 'f' + fieldCounter;
-                                    }
-                                    seenFieldIds.add(f.id);
-                                });
-
-                                document.getElementById('formTitle').value = @Html.Raw(Json.Serialize((string)ViewBag.FormTitle));
-
-                                const logoUrl = @Html.Raw(Json.Serialize((string)ViewBag.LogoUrl));
-                                if (logoUrl) {
-                                    document.getElementById('logoUrl').value = logoUrl;
-
-                                    const savedWidth = @Html.Raw(Json.Serialize((int?)ViewBag.LogoWidth));
-                                    const savedHeight = @Html.Raw(Json.Serialize((int?)ViewBag.LogoHeight));
-                                    logoWidth = savedWidth || null;
-                                    logoHeight = savedHeight || 110;
-
-                                    updateLogoPreview(logoUrl);
+                            // ✅ ADDED — repairs any form saved earlier while that bug was live: if two
+                            // fields already share an ID (or a field has no ID), give the extra one(s)
+                            // a fresh unique ID now, so this form stops mis-highlighting immediately.
+                            const seenFieldIds = new Set();
+                            formFields.forEach(function (f) {
+                                if (!f.id || seenFieldIds.has(f.id)) {
+                                    fieldCounter++;
+                                    f.id = 'f' + fieldCounter;
                                 }
+                                seenFieldIds.add(f.id);
+                            });
 
-                                const designJson = @Html.Raw(Json.Serialize((string)ViewBag.FormDesign));
-                                if (designJson) {
-                                    try {
-                                        const savedDesign = JSON.parse(designJson);
-                                        formDesign = Object.assign({}, formDesign, savedDesign || {});
-                                    } catch (e2) {
-                                        console.error('Failed to parse saved form design', e2);
-                                    }
-                                }
+                            document.getElementById('formTitle').value = @Html.Raw(Json.Serialize((string)ViewBag.FormTitle));
 
-                                renderCanvas();
-                            } catch (e) {
-                                console.error('Failed to load existing form', e);
+                            const logoUrl = @Html.Raw(Json.Serialize((string)ViewBag.LogoUrl));
+                            if (logoUrl) {
+                                document.getElementById('logoUrl').value = logoUrl;
+
+                                const savedWidth = @Html.Raw(Json.Serialize((int?)ViewBag.LogoWidth));
+                                const savedHeight = @Html.Raw(Json.Serialize((int?)ViewBag.LogoHeight));
+                                logoWidth = savedWidth || null;
+                                logoHeight = savedHeight || 110;
+
+                                updateLogoPreview(logoUrl);
                             }
-                        })();
-                        </text>
+
+                            const designJson = @Html.Raw(Json.Serialize((string)ViewBag.FormDesign));
+                            if (designJson) {
+                                try {
+                                    const savedDesign = JSON.parse(designJson);
+                                    formDesign = Object.assign({}, formDesign, savedDesign || {});
+                                } catch (e2) {
+                                    console.error('Failed to parse saved form design', e2);
+                                }
+                            }
+
+                            renderCanvas();
+                        } catch (e) {
+                            console.error('Failed to load existing form', e);
+                        }
+                    })();
+                    </text>
     }
 </script>
 <style>
@@ -1433,33 +1413,18 @@
         background: #eef1f5;
     }
 
-    /* ✅ CHANGED — sticky header so the toolbar/title/logo/save row no longer
-           scrolls away with the page; it stays pinned to the top of the viewport. */
-    .fb-header-sticky {
-        position: sticky;
-        top: 0;
-        z-index: 200;
-        background: #eef1f5;
-        padding-top: 2px;
-    }
-
     .fb-wrapper {
         display: flex;
-        align-items: flex-start;
         gap: 15px;
         min-height: 600px;
     }
 
-    /* ✅ CHANGED — palette/props stick under the header and scroll internally
-           instead of the whole page moving; only the middle canvas scrolls now. */
     .fb-palette, .fb-props {
         width: 250px;
         background: #2b3648;
         border-radius: 10px;
         padding: 14px;
-        position: sticky;
-        top: 148px;
-        max-height: calc(100vh - 168px);
+        max-height: 720px;
         overflow-y: auto;
         color: #fff;
     }
@@ -1515,16 +1480,12 @@
         color: #fff;
     }
 
-    /* ✅ CHANGED — canvas now owns its own scrollbar (capped to viewport height)
-           so dragging/building a long form scrolls just this middle panel. */
     .fb-canvas {
         flex: 1;
         background: #fff;
         border-radius: 10px;
         padding: 25px 30px;
         min-height: 500px;
-        max-height: calc(100vh - 168px);
-        overflow-y: auto;
         box-shadow: 0 2px 12px rgba(0,0,0,0.05);
         display: flex;
         flex-wrap: wrap;

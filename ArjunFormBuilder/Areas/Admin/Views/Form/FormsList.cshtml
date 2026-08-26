@@ -40,7 +40,14 @@
                 <th width="15%">Mail Templates</th>
                 <th style="text-align:center" width="10%">
                     <a class="cursor-pointer" style="color:black;" onclick="sortresult('IsActive');">
-                        Active Emails @if (sortcolumn == "IsActive") {
+                        Email Status @if (sortcolumn == "IsActive") {
+                        <img alt="@sortorder" src="Content/Admin/images/sort_@(sortorder).gif" />
+                                                }
+                    </a>
+                </th>
+                      <th style="text-align:center" width="10%">
+                    <a class="cursor-pointer" style="color:black;" onclick="sortresult('IsActive');">
+                     Form Status @if (sortcolumn == "IsActive") {
                         <img alt="@sortorder" src="Content/Admin/images/sort_@(sortorder).gif" />
                                                 }
                     </a>
@@ -69,7 +76,7 @@
 </td>
 <td style="text-align:left">
 <a class="text-success cursor-pointer" href="@Url.Action("FormSubmissions", "Form", new { formId = item.FormId })" title="Registrations">
-    Registrations
+    Registrations (@item.SubmissionCount)
 </a>
 </td>
 
@@ -104,12 +111,34 @@
                                 <span class="slider"></span>
                             </label>
                         </td>
+                        <td style="text-align:center">
+                            @{
+                                var isCheckedD = item.IsFormEnable ? "checked" : "";
+                            }
+                            @{
+                                var titleValue2 = item.IsFormEnable ? "Active" : "Disabled";
+                            }
+                            <label class="switch" title="@titleValue2">
+                                <input type="checkbox" onclick="UpdateFormEnable(@item.FormId)" @isCheckedD>
+                                <span class="slider"></span>
+                            </label>
+                        </td>
                         <td style="text-align:center">@item.CreatedDate.ToString("dd/MM/yyyy hh:mm tt")</td>
                         <td style="text-align:center">
                             <div class="table-actions d-flex align-items-center gap-3 fs-6">
                                 <a class="text-warning cursor-pointer" href="@Url.Action("FormBuilder", "Form", new { id = item.FormId })" title="Edit"><i class="bi bi-pencil-fill"></i></a>
                                 <a class="text-primary cursor-pointer" href="@Url.Action("RenderForm", "Form", new { id = item.FormId })" target="_blank" title="View"><i class="bi bi-eye-fill"></i></a>
-                                <a class="text-danger cursor-pointer" onclick="DeleteForm(@item.FormId);" title="Delete"><i class="bi bi-trash-fill"></i></a>
+                               
+                                <a class="text-info cursor-pointer" onclick="openPublishModal('@ArjunFormBuilder.BLL.FormLinkObfuscator.EncryptFormId(item.FormId)', '@Html.Raw(item.Title.Replace("\\", "\\\\").Replace("'", "\\'").Replace("\"", "&quot;"))');" title="Publish"><i class="bi bi-share-fill"></i></a>
+                                @if (item.SubmissionCount == 0)
+                                {
+                                  <a class="text-danger cursor-pointer" onclick="DeleteForm(@item.FormId);" title="Delete"><i class="bi bi-trash-fill"></i></a>
+                                }
+                               
+                                else
+                                {
+                                    <a class="text-danger cursor-pointer" style="color:#79818b !IMPORTANT"><i class="bi bi-trash-fill"></i></a>
+                                }
                             </div>
                         </td>
                     </tr>

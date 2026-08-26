@@ -10,6 +10,7 @@
     <Folder Include="Areas\Admin\Data\" />
     <Folder Include="NewFolder\" />
     <Folder Include="wwwroot\Content\FormLogos\NormalImages\" />
+    <Folder Include="wwwroot\Content\uploads\FormSubmissionFiles\" />
   </ItemGroup>
 
   <ItemGroup>

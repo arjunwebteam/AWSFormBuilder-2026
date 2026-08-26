@@ -51,8 +51,7 @@
     }
 
     // ✅ Read session values
-    int ChapterId = !string.IsNullOrEmpty(Context.Session.GetString("ChapterId"))
-                    ? Convert.ToInt32(Context.Session.GetString("ChapterId")) : 0;
+    int.TryParse(Context.Session.GetString("chapterid"), out int ChapterId);
 
     var Layout1 = Context.Session.GetString("BaseUrl") + "Content/LayoutLogo/normalimages/";
     var fevicon = Context.Session.GetString("BaseUrl") + "Content/faviconlogo/normalimages/";
@@ -66,7 +65,9 @@
     <!-- Required meta tags -->
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    @{var baseurl = objAppInfo.BaseUrl;}
+    @{
+        var baseurl = objAppInfo.BaseUrl;
+    }
     <base href="@(baseurl)" />
 
     <title>@objAppInfo.SiteName - Control Panel</title>
@@ -240,13 +241,22 @@
 
                 }
                 <div style="margin-left:auto">
-                    <a href="https://association.arjunweb.in/flow-document" target="_blank" style="color:#000">
-                        <i class="fa fa-file-text"></i> User Guide
-                    </a>
-                    <span class="px-2">|</span>
-                    <a href="https://association.arjunweb.in/features" target="_blank" style="color:#000">
-                        <i class="fa fa-list-ul"></i> Features List
-                    </a>
+
+
+                    @*     @if (objAppInfo.IsHelpDocument == "Yes")
+                    {
+                        <a href="https://arjunweb.com/association/user-guide" target="_blank" style="color:#000">
+                            <i class="fa fa-file-text"></i> User Guide
+                        </a>
+                    }
+
+                    @if (objAppInfo.IsFeaturesDocument == "Yes")
+                    {
+                        <span class="px-2">|</span>
+                        <a href="https://arjunweb.com/association/features" target="_blank" style="color:#000">
+                            <i class="fa fa-list-ul"></i> Features List
+                        </a>
+                    } *@
                 </div>
 
                 <div class="top-navbar-right ms-3">
@@ -266,7 +276,7 @@
                                             <div class="d-flex align-items-center">
                                                 <img src="Content/Admin/images/avatars/avatar-1.png" alt="" class="rounded-circle" width="60" height="60" />
                                                 <div class="ms-3">
-                                                    <h6 class="mb-0 dropdown-user-name">Arjunweb Admin</h6>
+                                                    <h6 class="mb-0 dropdown-user-name">@objAppInfo.SiteName Admin</h6>
                                                     <small class="mb-0 dropdown-user-designation text-secondary">Designation</small>
                                                 </div>
                                             </div>
@@ -282,14 +292,14 @@
                                         </a>
                                     </li>
 
-                                    <li>
+                                    @*   <li>
                                         <a class="dropdown-item" href="@Url.Action("Index", "Redirections")">
                                             <div class="d-flex align-items-center">
                                                 <div class="setting-icon"><i class="bi bi-gear-fill"></i></div>
                                                 <div class="setting-text ms-3"><span>Redirections</span></div>
                                             </div>
                                         </a>
-                                    </li>
+                                    </li> *@
                                     <li>
                                         <a class="dropdown-item" href="@Url.Action("Index", "Users")">
                                             <div class="d-flex align-items-center">
@@ -299,7 +309,7 @@
                                         </a>
                                     </li>
                                     <li>
-                                        <a class="dropdown-item" href="@Url.Action("Index", "Roles",new { mid=52})">
+                                        <a class="dropdown-item" href="@Url.Action("Index", "Roles", new { mid = 52 })">
                                             <div class="d-flex align-items-center">
                                                 <div class="setting-icon">
                                                     <i class="bi bi-person-badge"></i>
@@ -316,8 +326,15 @@
                                             </div>
                                         </a>
                                     </li>
+                                    @*     <li>
+                                        <a class="dropdown-item" href="@Url.Action("Index", "PhotosImageSettings")">
+                                            <div class="d-flex align-items-center">
+                                                <div class="setting-icon"><i class="bi bi-piggy-bank-fill"></i></div>
+                                                <div class="setting-text ms-3"><span>Photos Image Settings</span></div>
+                                            </div>
+                                        </a>
+                                    </li> *@
 
-                                    
 
 
                                     <li><hr class="dropdown-divider" /></li>
@@ -329,6 +346,17 @@
                                             </div>
                                         </a>
                                     </li>
+                                    @*    <li>
+                                       
+                                        <a class="dropdown-item" href="@Url.Action("logreport", "home")">
+                                            <div class="d-flex align-items-center">
+                                                <div class="setting-icon">
+                                                    <i class="bi bi-person-badge"></i>
+                                                </div>
+                                                <div class="setting-text ms-3"><span>Log Report</span></div>
+                                            </div>
+                                        </a>
+                                    </li> *@
                                 }
                                 else
                                 {
@@ -337,7 +365,7 @@
                                             <div class="d-flex align-items-center">
                                                 <img src="Content/Admin/images/avatars/avatar-1.png" alt="" class="rounded-circle" width="60" height="60" />
                                                 <div class="ms-3">
-                                                    <h6 class="mb-0 dropdown-user-name">Arjunweb Admin</h6>
+                                                    <h6 class="mb-0 dropdown-user-name">@objAppInfo.SiteName Admin</h6>
                                                     <small class="mb-0 dropdown-user-designation text-secondary">Designation</small>
                                                 </div>
                                             </div>
@@ -378,16 +406,24 @@
                     <img src="@Layout1/@objAppInfo.LayoutLogo" class="logo-icon" alt="logo icon" />
                 </div>
                 <div>
-                    <h4 class="logo-text">Arjunweb</h4>
+                    <h4 class="logo-text" style="
+    font-size: 18px;
+">
+                        @objAppInfo.SiteName
+                    </h4>
                 </div>
                 <div class="toggle-icon ms-auto">
                     <i class="bi bi-chevron-double-left"></i>
                 </div>
             </div>
             <!--navigation-->
-            <ul class="metismenu" id="menu">
-
-
+            <ul class="metismenu" id="menu" style="
+    width: 259px;
+">
+                <div class="menu-search" style="padding: 10px;">
+                    <input type="text" id="menuSearch" placeholder="Search menus..." class="form-control" style="border-color: blue;" />
+                    <div id="searchResults"></div>
+                </div>
                 @if (userRole.Contains("SuperAdmin") || userRole.Contains("DeveloperAdmin"))
                 {
                     if (lstMainMenu != null && lstMainMenu.Count != 0)
@@ -396,57 +432,57 @@
                         {
 
                             lstSubmenuCount = lstSubMenu.FindAll(x => x.PageParentId == item.MenuItemId);
-                            
-                            
+
+
                             if (lstSubmenuCount != null && lstSubmenuCount.Count != 0)
                             {
-                <li class="treeview" id="w@(item.DisplayName.Replace(" ", ""))">
+                                <li class="treeview" id="w@(item.DisplayName.Replace(" ", ""))">
 
 
-                    @if (userRole.Contains("SuperAdmin") && item.DisplayName == "Developers")
-                    {
-
-                }
-                    else
-                {
-                        <a href="javascript:;" class="has-arrow">
-                            <div class="parent-icon"><i class="bi bi-list-task"></i></div>
-                            <div class="menu-title">@item.DisplayName</div>
-                        </a>
-
-
-
-                        <ul>
-                            @foreach (var submenu in lstSubmenuCount)
-                            {
-                    if (submenu.PageParentId == item.MenuItemId)
-                    {
-                        if (submenu.DisplayName == "Active Members" || submenu.DisplayName == "Inactive Members" || submenu.DisplayName == "Pending Members")
-                        {
-                                        <li id="w@(submenu.DisplayName.Replace(" ", ""))"> <a href="@submenu.PageUrl&mid=@submenu.MenuItemId"><i class="bi bi-arrow-right-short"></i>@submenu.DisplayName</a></li>
-
-
-
-
+                                    @if (userRole.Contains("SuperAdmin") && item.DisplayName == "Developers")
+                                    {
 
                                     }
                                     else
-                {
-                                        <li id="w@(submenu.DisplayName.Replace(" ", ""))"> <a href="@submenu.PageUrl?mid=@submenu.MenuItemId"><i class="bi bi-arrow-right-short"></i>@submenu.DisplayName</a></li>
+                                    {
+                                        <a href="javascript:;" class="has-arrow">
+                                            <div class="parent-icon"><i class="bi bi-list-task"></i></div>
+                                            <div class="menu-title">@item.DisplayName</div>
+                                        </a>
 
+
+
+                                        <ul>
+                                            @foreach (var submenu in lstSubmenuCount)
+                                            {
+                                                if (submenu.PageParentId == item.MenuItemId)
+                                                {
+                                                    if (submenu.DisplayName == "Active Members" || submenu.DisplayName == "Inactive Members" || submenu.DisplayName == "Pending Members")
+                                                    {
+                                                        <li id="w@(submenu.DisplayName.Replace(" ", ""))"> <a href="@submenu.PageUrl&mid=@submenu.MenuItemId"><i class="bi bi-arrow-right-short"></i>@submenu.DisplayName</a></li>
+
+
+
+
+
+                                                    }
+                                                    else
+                                                    {
+                                                        <li id="w@(submenu.DisplayName.Replace(" ", ""))"> <a href="@submenu.PageUrl?mid=@submenu.MenuItemId"><i class="bi bi-arrow-right-short"></i>@submenu.DisplayName</a></li>
+
+                                                    }
+                                                }
+                                            }
+                                        </ul>
                                     }
-                                }
-                            }
-                        </ul>
-                    }
 
 
 
 
-                </li>
+                                </li>
                             }
                             else
-                {
+                            {
                                 <li id="w@(item.DisplayName.Replace(" ", ""))">
                                     @if (item.DisplayName == "Events")
                                     {
@@ -456,7 +492,7 @@
                                         </a>
                                     }
                                     else
-                {
+                                    {
                                         <a href="@item.PageUrl?mid=@item.MenuItemId">
                                             <div class="parent-icon"><i class="bi bi-list-task"></i></div>
                                             <div class="menu-title">@item.DisplayName</div>
@@ -490,42 +526,42 @@
                                     <ul>
                                         @foreach (var submenu in lstSubmenuCount)
                                         {
-                    if (submenu.PageParentId == item.MenuItemId)
-                    {
-                        //if (userRole.Contains(submenu.DisplayName))
-                        //{
-                        if (submenu.DisplayName == "Active Members" || submenu.DisplayName == "Inactive Members" || submenu.DisplayName == "Pending Members")
-                        {
+                                            if (submenu.PageParentId == item.MenuItemId)
+                                            {
+                                                //if (userRole.Contains(submenu.DisplayName))
+                                                //{
+                                                if (submenu.DisplayName == "Active Members" || submenu.DisplayName == "Inactive Members" || submenu.DisplayName == "Pending Members")
+                                                {
                                                     <li id="w@(submenu.DisplayName.Replace(" ", ""))"> <a href="@submenu.PageUrl&mid=@submenu.MenuItemId"><i class="bi bi-arrow-right-short"></i>@submenu.DisplayName</a></li>
 
 
-                                                    }
-                                                    else
-                {
+                                                }
+                                                else
+                                                {
                                                     <li id="w@(submenu.DisplayName.Replace(" ", ""))"> <a href="@submenu.PageUrl?mid=@submenu.MenuItemId"><i class="bi bi-arrow-right-short"></i>@submenu.DisplayName</a></li>
 
-                                                    }
+                                                }
                                                 //}
                                             }
                                         }
                                     </ul>
                                 </li>
-                                }
-                                else
-                {
+                            }
+                            else
+                            {
                                 <li id="w@(item.DisplayName.Replace(" ", ""))">
                                     @if (item.DisplayName == "Events")
                                     {
                                         <a href="@item.PageUrl&mid=@item.MenuItemId"><i class="fa fa-bars"></i><span>&nbsp;&nbsp;@item.DisplayName</span></a>
                                     }
                                     else
-                {
+                                    {
                                         <a href="@item.PageUrl?mid=@item.MenuItemId"><i class="fa fa-bars"></i><span>&nbsp;&nbsp;@item.DisplayName</span></a>
                                     }
                                 </li>
-                                }
+                            }
 
-                           // }
+                            // }
                         }
                     }
 
@@ -629,6 +665,11 @@
                         <div class="upload-action-btn text-center px-2">
                             <button type="button" id="cropImageBtn" class="btn btn-success">Save Photo</button>
                             <button type="button" class="btn btn-primary replacePhoto position-relative">Replace Photo</button>
+                            <button type="button"
+                                    class="btn btn-danger"
+                                    data-bs-dismiss="modal">
+                                Cancel
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -642,87 +683,128 @@
     <script src="Content/Admin/plugins/notifications/js/lobibox.min.js"></script>
     <script src="Content/Admin/plugins/notifications/js/notifications.min.js"></script>
     <script src="Content/Admin/plugins/notifications/js/notification-custom-script.js"></script>
-    <script src="Content/Admin/plugins/perfect-scrollbar/js/perfect-scrollbar.js"></script>  @* ✅ uncommented *@
-    <script src="Content/Admin/js/pace.min.js"></script>                                       @* ✅ uncommented *@
+    @*<script src="Content/Admin/plugins/perfect-scrollbar/js/perfect-scrollbar.js"></script>*@
+    @*<script src="Content/Admin/js/pace.min.js"></script>*@
     <script src="Content/Admin/plugins/select2/js/select2.min.js"></script>
     <script src="Content/Admin/js/form-select2.js"></script>
-
     <!--app-->
-@*     <script src="Content/Admin/js/app.js"></script>  
- *@    
- 
- <script src="Scripts/Admin/Common.js"></script>
+    <script src="Content/Admin/js/app.js"></script>
+
+    <script src="Scripts/Admin/Common.js"></script>
 
     <script>
-        var $uploadCrop,
-            tempFilename,
-            rawImg,
-            imageId;
+        $(document).on('keyup', '#menuSearch', function () {
+            var searchTerm = $(this).val().toLowerCase();
 
-        function readFile(input) {
+            if (searchTerm.length > 0) {
+                $('#menu li').hide().filter(function () {
+                    return $(this).text().toLowerCase().indexOf(searchTerm) !== -1;
+                }).show();
+            } else {
+                $('#menu li').show();
+            }
+        });
+    </script>
+    <script>
+                var $uploadCrop,
+                    tempFilename,
+                    rawImg,
+                    imageId;
+
+              function readFile(input) {
+
             if (input.files && input.files[0]) {
+
+                var file = input.files[0];
+
+                // Allowed image types only
+                var allowedTypes = [
+                    'image/jpeg',
+                    'image/jpg',
+                    'image/png',
+                    'image/gif'
+                ];
+
+                // Validate file type
+                if ($.inArray(file.type, allowedTypes) === -1) {
+
+                    alert('Only JPG, JPEG, PNG and GIF images are allowed.');
+
+                    // Clear selected file
+                    $(input).val('');
+
+                    return false;
+                }
+
                 var reader = new FileReader();
+
                 reader.onload = function (e) {
+
                     $('.upload-demo').addClass('ready');
+
                     $('#cropImagePop').modal('show');
+
                     rawImg = e.target.result;
                 }
-                reader.readAsDataURL(input.files[0]);
+
+                reader.readAsDataURL(file);
+
             } else {
+
                 console.log("Sorry - your browser doesn't support the FileReader API");
             }
         }
 
-        $uploadCrop = $('#upload-demo').croppie({
-            viewport: {
-                width: '@ViewBag.v1',
-                height: '@ViewBag.v2',
-                type: 'square'
-            },
-            enforceBoundary: false,
-            enableExif: true
-        });
+                $uploadCrop = $('#upload-demo').croppie({
+                    viewport: {
+                        width: '@ViewBag.v1',
+                        height: '@ViewBag.v2',
+                        type: 'square'
+                    },
+                    enforceBoundary: false,
+                    enableExif: true
+                });
 
-        $('#cropImagePop').on('shown.bs.modal', function () {
-            //$('.cr-slider-wrap').prepend('<p>Image Zoom</p>');
-            $uploadCrop.croppie('bind', {
-                url: rawImg
-            }).then(function () {
-                //console.log('jQuery bind complete');
-            });
-        });
+                $('#cropImagePop').on('shown.bs.modal', function () {
+                    //$('.cr-slider-wrap').prepend('<p>Image Zoom</p>');
+                    $uploadCrop.croppie('bind', {
+                        url: rawImg
+                    }).then(function () {
+                        //console.log('jQuery bind complete');
+                    });
+                });
 
-        $('#cropImagePop').on('hidden.bs.modal', function () {
-            $('.item-img').val(rawImg);
-            $('.cr-slider-wrap p').remove();
-        });
+                $('#cropImagePop').on('hidden.bs.modal', function () {
+                    $('.item-img').val(rawImg);
+                    $('.cr-slider-wrap p').remove();
+                });
 
-        $('.item-img').on('change', function () {
-            readFile(this);
-        });
+                $('.item-img').on('change', function () {
+                    readFile(this);
+                });
 
-        $('.replacePhoto').on('click', function () {
-            $('#cropImagePop').modal('hide');
-            $('.item-img').trigger('click');
-        });
+                $('.replacePhoto').on('click', function () {
+                    $('#cropImagePop').modal('hide');
+                    $('.item-img').trigger('click');
+                });
 
-        $('#cropImageBtn').on('click', function (ev) {
-            $('.ci-user-picture').show();
-            $uploadCrop.croppie('result', {
-                type: 'base64',
-                backgroundColor: "#000000",
-                format: 'png',
-                size: { width: '@ViewBag.v1', height: '@ViewBag.v2' }
-            }).then(function (resp) {
-                $('#item-img-output').attr('src', resp);
-                $('#Thumbimage').val(resp);  // Set the hidden input value
-                $('#cropImagePop').modal('hide');
-                $('.item-img').val(rawImg);
-            });
-        });
+                $('#cropImageBtn').on('click', function (ev) {
+                    $('.ci-user-picture').show();
+                    $uploadCrop.croppie('result', {
+                        type: 'base64',
+                        backgroundColor: "#000000",
+                        format: 'png',
+                        size: { width: '@ViewBag.v1', height: '@ViewBag.v2' }
+                    }).then(function (resp) {
+                        $('#item-img-output').attr('src', resp);
+                        $('#Thumbimage').val(resp);  // Set the hidden input value
+                        $('#cropImagePop').modal('hide');
+                        $('.item-img').val(rawImg);
+                    });
+                });
     </script>
 
-    @RenderSection("Scripts", required: false)
+
 </body>
 
 </html>

@@ -1,4 +1,5 @@
 ﻿@using Microsoft.AspNetCore.Http
+@using System.Linq
 @{
     Layout = null;
 
@@ -56,7 +57,30 @@
     var Layout1 = Context.Session.GetString("BaseUrl") + "Content/LayoutLogo/normalimages/";
     var fevicon = Context.Session.GetString("BaseUrl") + "Content/faviconlogo/normalimages/";
     var EventName = ViewBag.EventName;
-    string URL = "";
+
+    // ✅ FIXED — this was declared but never set, so the "current page" check
+    // on line ~517 (URL.Contains(x.PageUrl)) always failed and no menu item
+    // was ever marked active on page load / redirect — only on manual click.
+    string URL = Context.Request.Path.Value ?? "";
+
+    // ✅ ADDED — normalizes a path so "/Admin/Form", "/Admin/Form/Index",
+    // "~/Admin/Form/" etc. are all treated as the same page for active-state matching.
+    string NormalizeMenuPath(string p)
+    {
+        p = (p ?? "").Trim();
+        if (p.StartsWith("~")) p = p.Substring(1);
+        if (!p.StartsWith("/")) p = "/" + p;
+        p = p.TrimEnd('/');
+        if (p.EndsWith("/Index", StringComparison.OrdinalIgnoreCase))
+            p = p.Substring(0, p.Length - "/Index".Length);
+        return p.ToLowerInvariant();
+    }
+
+    bool IsMenuActive(string currentPath, string menuUrl)
+    {
+        if (string.IsNullOrWhiteSpace(menuUrl)) return false;
+        return NormalizeMenuPath(currentPath) == NormalizeMenuPath(menuUrl);
+    }
 }
 <!doctype html>
 <html lang="en" class="minimal-theme">
@@ -243,7 +267,7 @@
                 <div style="margin-left:auto">
 
 
-                @*     @if (objAppInfo.IsHelpDocument == "Yes")
+                    @*     @if (objAppInfo.IsHelpDocument == "Yes")
                     {
                         <a href="https://arjunweb.com/association/user-guide" target="_blank" style="color:#000">
                             <i class="fa fa-file-text"></i> User Guide
@@ -292,7 +316,7 @@
                                         </a>
                                     </li>
 
-                                  @*   <li>
+                                    @*   <li>
                                         <a class="dropdown-item" href="@Url.Action("Index", "Redirections")">
                                             <div class="d-flex align-items-center">
                                                 <div class="setting-icon"><i class="bi bi-gear-fill"></i></div>
@@ -326,7 +350,7 @@
                                             </div>
                                         </a>
                                     </li>
-                                @*     <li>
+                                    @*     <li>
                                         <a class="dropdown-item" href="@Url.Action("Index", "PhotosImageSettings")">
                                             <div class="d-flex align-items-center">
                                                 <div class="setting-icon"><i class="bi bi-piggy-bank-fill"></i></div>
@@ -346,7 +370,7 @@
                                             </div>
                                         </a>
                                     </li>
-                                 @*    <li>
+                                    @*    <li>
                                        
                                         <a class="dropdown-item" href="@Url.Action("logreport", "home")">
                                             <div class="d-flex align-items-center">
@@ -408,7 +432,9 @@
                 <div>
                     <h4 class="logo-text" style="
     font-size: 18px;
-">@objAppInfo.SiteName</h4>
+">
+                        @objAppInfo.SiteName
+                    </h4>
                 </div>
                 <div class="toggle-icon ms-auto">
                     <i class="bi bi-chevron-double-left"></i>
@@ -418,7 +444,7 @@
             <ul class="metismenu" id="menu" style="
     width: 259px;
 ">
-                 <div class="menu-search" style="padding: 10px;">
+                <div class="menu-search" style="padding: 10px;">
                     <input type="text" id="menuSearch" placeholder="Search menus..." class="form-control" style="border-color: blue;" />
                     <div id="searchResults"></div>
                 </div>
@@ -434,7 +460,10 @@
 
                             if (lstSubmenuCount != null && lstSubmenuCount.Count != 0)
                             {
-                                <li class="treeview" id="w@(item.DisplayName.Replace(" ", ""))">
+                                // ✅ ADDED — is any submenu under this parent the current page?
+                                bool parentActive = lstSubmenuCount.Any(s => IsMenuActive(URL, s.PageUrl));
+
+                                <li class="treeview @(parentActive ? "mm-active" : "")" id="w@(item.DisplayName.Replace(" ", ""))">
 
 
                                     @if (userRole.Contains("SuperAdmin") && item.DisplayName == "Developers")
@@ -443,21 +472,22 @@
                                     }
                                     else
                                     {
-                                        <a href="javascript:;" class="has-arrow">
+                                        <a href="javascript:;" class="has-arrow @(parentActive ? "mm-active" : "")">
                                             <div class="parent-icon"><i class="bi bi-list-task"></i></div>
                                             <div class="menu-title">@item.DisplayName</div>
                                         </a>
 
 
 
-                                        <ul>
+                                        <ul class="@(parentActive ? "mm-show" : "")" style="@(parentActive ? "display:block;" : "")">
                                             @foreach (var submenu in lstSubmenuCount)
                                             {
                                                 if (submenu.PageParentId == item.MenuItemId)
                                                 {
+                                                    bool subActive = IsMenuActive(URL, submenu.PageUrl);
                                                     if (submenu.DisplayName == "Active Members" || submenu.DisplayName == "Inactive Members" || submenu.DisplayName == "Pending Members")
                                                     {
-                                                        <li id="w@(submenu.DisplayName.Replace(" ", ""))"> <a href="@submenu.PageUrl&mid=@submenu.MenuItemId"><i class="bi bi-arrow-right-short"></i>@submenu.DisplayName</a></li>
+                                                        <li class="@(subActive ? "mm-active" : "")" id="w@(submenu.DisplayName.Replace(" ", ""))"> <a class="@(subActive ? "mm-active" : "")" href="@submenu.PageUrl&mid=@submenu.MenuItemId"><i class="bi bi-arrow-right-short"></i>@submenu.DisplayName</a></li>
 
 
 
@@ -466,7 +496,7 @@
                                                     }
                                                     else
                                                     {
-                                                        <li id="w@(submenu.DisplayName.Replace(" ", ""))"> <a href="@submenu.PageUrl?mid=@submenu.MenuItemId"><i class="bi bi-arrow-right-short"></i>@submenu.DisplayName</a></li>
+                                                        <li class="@(subActive ? "mm-active" : "")" id="w@(submenu.DisplayName.Replace(" ", ""))"> <a class="@(subActive ? "mm-active" : "")" href="@submenu.PageUrl?mid=@submenu.MenuItemId"><i class="bi bi-arrow-right-short"></i>@submenu.DisplayName</a></li>
 
                                                     }
                                                 }
@@ -481,17 +511,18 @@
                             }
                             else
                             {
-                                <li id="w@(item.DisplayName.Replace(" ", ""))">
+                                bool itemActive = IsMenuActive(URL, item.PageUrl);
+                                <li class="@(itemActive ? "mm-active" : "")" id="w@(item.DisplayName.Replace(" ", ""))">
                                     @if (item.DisplayName == "Events")
                                     {
-                                        <a href="@item.PageUrl&mid=@item.MenuItemId">
+                                        <a class="@(itemActive ? "mm-active" : "")" href="@item.PageUrl&mid=@item.MenuItemId">
                                             <div class="parent-icon"><i class="bi bi-list-task"></i></div>
                                             <div class="menu-title">@item.DisplayName</div>
                                         </a>
                                     }
                                     else
                                     {
-                                        <a href="@item.PageUrl?mid=@item.MenuItemId">
+                                        <a class="@(itemActive ? "mm-active" : "")" href="@item.PageUrl?mid=@item.MenuItemId">
                                             <div class="parent-icon"><i class="bi bi-list-task"></i></div>
                                             <div class="menu-title">@item.DisplayName</div>
                                         </a>
@@ -513,30 +544,31 @@
                             lstSubmenuCount = lstSubMenu.FindAll(x => x.PageParentId == item.MenuItemId);
                             if (lstSubmenuCount != null && lstSubmenuCount.Count != 0)
                             {
-                                int i = 0;
-                                i = lstSubMenu.Count(x => URL.Contains(x.PageUrl));
+                                // ✅ ADDED — is any submenu under this parent the current page?
+                                bool parentActive = lstSubmenuCount.Any(s => IsMenuActive(URL, s.PageUrl));
 
-                                <li class="treeview" id="w@(item.DisplayName.Replace(" ", ""))">
-                                    <a href="javascript:;" class="has-arrow">
+                                <li class="treeview @(parentActive ? "mm-active" : "")" id="w@(item.DisplayName.Replace(" ", ""))">
+                                    <a href="javascript:;" class="has-arrow @(parentActive ? "mm-active" : "")">
                                         <div class="parent-icon"><i class="bi bi-list-task"></i></div>
                                         <div class="menu-title">@item.DisplayName</div>
                                     </a>
-                                    <ul>
+                                    <ul class="@(parentActive ? "mm-show" : "")" style="@(parentActive ? "display:block;" : "")">
                                         @foreach (var submenu in lstSubmenuCount)
                                         {
                                             if (submenu.PageParentId == item.MenuItemId)
                                             {
+                                                bool subActive = IsMenuActive(URL, submenu.PageUrl);
                                                 //if (userRole.Contains(submenu.DisplayName))
                                                 //{
                                                 if (submenu.DisplayName == "Active Members" || submenu.DisplayName == "Inactive Members" || submenu.DisplayName == "Pending Members")
                                                 {
-                                                    <li id="w@(submenu.DisplayName.Replace(" ", ""))"> <a href="@submenu.PageUrl&mid=@submenu.MenuItemId"><i class="bi bi-arrow-right-short"></i>@submenu.DisplayName</a></li>
+                                                    <li class="@(subActive ? "mm-active" : "")" id="w@(submenu.DisplayName.Replace(" ", ""))"> <a class="@(subActive ? "mm-active" : "")" href="@submenu.PageUrl&mid=@submenu.MenuItemId"><i class="bi bi-arrow-right-short"></i>@submenu.DisplayName</a></li>
 
 
                                                 }
                                                 else
                                                 {
-                                                    <li id="w@(submenu.DisplayName.Replace(" ", ""))"> <a href="@submenu.PageUrl?mid=@submenu.MenuItemId"><i class="bi bi-arrow-right-short"></i>@submenu.DisplayName</a></li>
+                                                    <li class="@(subActive ? "mm-active" : "")" id="w@(submenu.DisplayName.Replace(" ", ""))"> <a class="@(subActive ? "mm-active" : "")" href="@submenu.PageUrl?mid=@submenu.MenuItemId"><i class="bi bi-arrow-right-short"></i>@submenu.DisplayName</a></li>
 
                                                 }
                                                 //}
@@ -547,14 +579,15 @@
                             }
                             else
                             {
-                                <li id="w@(item.DisplayName.Replace(" ", ""))">
+                                bool itemActive = IsMenuActive(URL, item.PageUrl);
+                                <li class="@(itemActive ? "mm-active" : "")" id="w@(item.DisplayName.Replace(" ", ""))">
                                     @if (item.DisplayName == "Events")
                                     {
-                                        <a href="@item.PageUrl&mid=@item.MenuItemId"><i class="fa fa-bars"></i><span>&nbsp;&nbsp;@item.DisplayName</span></a>
+                                        <a class="@(itemActive ? "mm-active" : "")" href="@item.PageUrl&mid=@item.MenuItemId"><i class="fa fa-bars"></i><span>&nbsp;&nbsp;@item.DisplayName</span></a>
                                     }
                                     else
                                     {
-                                        <a href="@item.PageUrl?mid=@item.MenuItemId"><i class="fa fa-bars"></i><span>&nbsp;&nbsp;@item.DisplayName</span></a>
+                                        <a class="@(itemActive ? "mm-active" : "")" href="@item.PageUrl?mid=@item.MenuItemId"><i class="fa fa-bars"></i><span>&nbsp;&nbsp;@item.DisplayName</span></a>
                                     }
                                 </li>
                             }
@@ -663,11 +696,11 @@
                         <div class="upload-action-btn text-center px-2">
                             <button type="button" id="cropImageBtn" class="btn btn-success">Save Photo</button>
                             <button type="button" class="btn btn-primary replacePhoto position-relative">Replace Photo</button>
-                             <button type="button"
-            class="btn btn-danger"
-            data-bs-dismiss="modal">
-        Cancel
-    </button>
+                            <button type="button"
+                                    class="btn btn-danger"
+                                    data-bs-dismiss="modal">
+                                Cancel
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -690,116 +723,116 @@
 
     <script src="Scripts/Admin/Common.js"></script>
 
-        <script>
-            $(document).on('keyup', '#menuSearch', function () {
-                var searchTerm = $(this).val().toLowerCase();
+    <script>
+        $(document).on('keyup', '#menuSearch', function () {
+            var searchTerm = $(this).val().toLowerCase();
 
-                if (searchTerm.length > 0) {
-                    $('#menu li').hide().filter(function () {
-                        return $(this).text().toLowerCase().indexOf(searchTerm) !== -1;
-                    }).show();
-                } else {
-                    $('#menu li').show();
-                }
-            });
+            if (searchTerm.length > 0) {
+                $('#menu li').hide().filter(function () {
+                    return $(this).text().toLowerCase().indexOf(searchTerm) !== -1;
+                }).show();
+            } else {
+                $('#menu li').show();
+            }
+        });
     </script>
     <script>
-        var $uploadCrop,
-            tempFilename,
-            rawImg,
-            imageId;
+                var $uploadCrop,
+                    tempFilename,
+                    rawImg,
+                    imageId;
 
-      function readFile(input) {
+              function readFile(input) {
 
-    if (input.files && input.files[0]) {
+            if (input.files && input.files[0]) {
 
-        var file = input.files[0];
+                var file = input.files[0];
 
-        // Allowed image types only
-        var allowedTypes = [
-            'image/jpeg',
-            'image/jpg',
-            'image/png',
-            'image/gif'
-        ];
+                // Allowed image types only
+                var allowedTypes = [
+                    'image/jpeg',
+                    'image/jpg',
+                    'image/png',
+                    'image/gif'
+                ];
 
-        // Validate file type
-        if ($.inArray(file.type, allowedTypes) === -1) {
+                // Validate file type
+                if ($.inArray(file.type, allowedTypes) === -1) {
 
-            alert('Only JPG, JPEG, PNG and GIF images are allowed.');
+                    alert('Only JPG, JPEG, PNG and GIF images are allowed.');
 
-            // Clear selected file
-            $(input).val('');
+                    // Clear selected file
+                    $(input).val('');
 
-            return false;
+                    return false;
+                }
+
+                var reader = new FileReader();
+
+                reader.onload = function (e) {
+
+                    $('.upload-demo').addClass('ready');
+
+                    $('#cropImagePop').modal('show');
+
+                    rawImg = e.target.result;
+                }
+
+                reader.readAsDataURL(file);
+
+            } else {
+
+                console.log("Sorry - your browser doesn't support the FileReader API");
+            }
         }
 
-        var reader = new FileReader();
+                $uploadCrop = $('#upload-demo').croppie({
+                    viewport: {
+                        width: '@ViewBag.v1',
+                        height: '@ViewBag.v2',
+                        type: 'square'
+                    },
+                    enforceBoundary: false,
+                    enableExif: true
+                });
 
-        reader.onload = function (e) {
+                $('#cropImagePop').on('shown.bs.modal', function () {
+                    //$('.cr-slider-wrap').prepend('<p>Image Zoom</p>');
+                    $uploadCrop.croppie('bind', {
+                        url: rawImg
+                    }).then(function () {
+                        //console.log('jQuery bind complete');
+                    });
+                });
 
-            $('.upload-demo').addClass('ready');
+                $('#cropImagePop').on('hidden.bs.modal', function () {
+                    $('.item-img').val(rawImg);
+                    $('.cr-slider-wrap p').remove();
+                });
 
-            $('#cropImagePop').modal('show');
+                $('.item-img').on('change', function () {
+                    readFile(this);
+                });
 
-            rawImg = e.target.result;
-        }
+                $('.replacePhoto').on('click', function () {
+                    $('#cropImagePop').modal('hide');
+                    $('.item-img').trigger('click');
+                });
 
-        reader.readAsDataURL(file);
-
-    } else {
-
-        console.log("Sorry - your browser doesn't support the FileReader API");
-    }
-}
-
-        $uploadCrop = $('#upload-demo').croppie({
-            viewport: {
-                width: '@ViewBag.v1',
-                height: '@ViewBag.v2',
-                type: 'square'
-            },
-            enforceBoundary: false,
-            enableExif: true
-        });
-
-        $('#cropImagePop').on('shown.bs.modal', function () {
-            //$('.cr-slider-wrap').prepend('<p>Image Zoom</p>');
-            $uploadCrop.croppie('bind', {
-                url: rawImg
-            }).then(function () {
-                //console.log('jQuery bind complete');
-            });
-        });
-
-        $('#cropImagePop').on('hidden.bs.modal', function () {
-            $('.item-img').val(rawImg);
-            $('.cr-slider-wrap p').remove();
-        });
-
-        $('.item-img').on('change', function () {
-            readFile(this);
-        });
-
-        $('.replacePhoto').on('click', function () {
-            $('#cropImagePop').modal('hide');
-            $('.item-img').trigger('click');
-        });
-
-        $('#cropImageBtn').on('click', function (ev) {
-            $('.ci-user-picture').show();
-            $uploadCrop.croppie('result', {
-                type: 'base64',
-                backgroundColor: "#000000",
-                format: 'png',
-                size: { width: '@ViewBag.v1', height: '@ViewBag.v2' }
-            }).then(function (resp) {
-                $('#item-img-output').attr('src', resp);
-                $('#Thumbimage').val(resp);  // Set the hidden input value
-                $('#cropImagePop').modal('hide');
-                $('.item-img').val(rawImg);
-            });
-        });
+                $('#cropImageBtn').on('click', function (ev) {
+                    $('.ci-user-picture').show();
+                    $uploadCrop.croppie('result', {
+                        type: 'base64',
+                        backgroundColor: "#000000",
+                        format: 'png',
+                        size: { width: '@ViewBag.v1', height: '@ViewBag.v2' }
+                    }).then(function (resp) {
+                        $('#item-img-output').attr('src', resp);
+                        $('#Thumbimage').val(resp);  // Set the hidden input value
+                        $('#cropImagePop').modal('hide');
+                        $('.item-img').val(rawImg);
+                    });
+                });
     </script>
 
 

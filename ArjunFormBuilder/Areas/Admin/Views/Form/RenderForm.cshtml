@@ -3,16 +3,22 @@
     ViewBag.Title = Model.Title;
     Layout = null;
 
+    int status = 0;
+    ArjunFormBuilder.BLL.AppInfo _AppInfo = new ArjunFormBuilder.BLL.AppInfo();
+    ArjunFormBuilder.Entities.AppInfo objAppInfo = _AppInfo.GetAppInfoDetails(ref status);
 
     var designJson = string.IsNullOrEmpty(Model.DesignJson) ? "{}" : Model.DesignJson;
 }
-
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8" />
     <title>@Model.Title</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    @* ✅ ADDED — jQuery Validate powers all client-side field validation on this form now,
+       instead of the browser's native "Please fill out this field" popups. *@
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
     @if (ViewBag.PaymentEnabled == true && ViewBag.PaymentGateway == "stripe")
     {
         <script src="https://js.stripe.com/v3/"></script>
@@ -159,6 +165,66 @@
             margin-top: 10px;
         }
 
+        /* ✅ ADDED — invisible overlay that intercepts the first click on the PayPal button so
+           required-field/captcha validation runs BEFORE PayPal's popup ever opens. Without this,
+           PayPal pre-opens a blank popup window on every click (to dodge popup blockers) and only
+           closes it afterwards if validation fails — causing the popup to visibly flash open and
+           shut. Once validation passes the overlay hides itself so the real button becomes
+           clickable. */
+        .paypal-click-guard {
+            position: absolute;
+            inset: 0;
+            z-index: 5;
+            cursor: pointer;
+            background: transparent;
+        }
+
+        /* ✅ ADDED — JotCaptcha distorted-text widget */
+        .jotcaptcha-box {
+            display: inline-block;
+        }
+
+        .jotcaptcha-img-wrap {
+            display: inline-block;
+            border: 1px solid #d7dce1;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+            .jotcaptcha-img-wrap canvas {
+                display: block;
+            }
+
+        /* ✅ CHANGED — refresh button used to float on top of the canvas (top-right corner),
+           which clipped/obscured the last captcha character. Moved it off the image entirely
+           and attached it to the textbox as an input-group addon instead. */
+        .jotcaptcha-input-group {
+            max-width: 220px;
+        }
+
+            .jotcaptcha-input-group .form-control {
+                border-top-right-radius: 0;
+                border-bottom-right-radius: 0;
+            }
+
+        .jotcaptcha-refresh {
+            border: 1px solid #d7dce1;
+            border-left: none;
+            border-top-right-radius: 8px;
+            border-bottom-right-radius: 8px;
+            background: #f4f6f9;
+            color: #4a7cf6;
+            font-size: 15px;
+            line-height: 1;
+            cursor: pointer;
+            padding: 0 12px;
+        }
+
+            .jotcaptcha-refresh:hover {
+                background: #eef1f5;
+            }
+
             .payment-message.payment-error {
                 display: block;
                 background: #fdecea;
@@ -231,51 +297,93 @@
             display: block;
             margin-bottom: 6px;
         }
+                .form-closed-wrap {
+            text-align: center;
+            padding: 50px 30px;
+        }
+
+            .form-closed-wrap h3 {
+                color: #1c2b39;
+                font-weight: 700;
+                margin-bottom: 14px;
+            }
+
+            .form-closed-wrap p {
+                color: #5a6b7b;
+                margin-bottom: 6px;
+            }
+
+            .form-closed-wrap .closed-contact {
+                margin-top: 18px;
+                font-weight: 600;
+                color: #33475b;
+            }
     </style>
 </head>
 <body>
     <script src="Scripts/Admin/form-client-validate.js"></script>
     <script src="Scripts/Admin/form-payment-gateway.js"></script>
-    <div class="form-card">
-        @{
-            var logoBgColor = "";
-            var logoAlignment = "center";
-            var logoAltText = "";
-            if (!string.IsNullOrEmpty(Model.DesignJson))
-            {
-                try
-                {
-                    var designObj = Newtonsoft.Json.Linq.JObject.Parse(Model.DesignJson);
-                    if (designObj["logoBgColor"] != null) logoBgColor = designObj["logoBgColor"].ToString();
-                    if (designObj["logoAlignment"] != null) logoAlignment = designObj["logoAlignment"].ToString();
-                    if (designObj["logoAltText"] != null) logoAltText = designObj["logoAltText"].ToString();
-                }
-                catch { }
-            }
-        }
-
-        @if (!string.IsNullOrEmpty(Model.LogoUrl))
+     <div class="form-card">
+         @if (ViewBag.FormClosed == true)
         {
-            <div class="form-logo-wrap"
-                 style="background-color: @(string.IsNullOrEmpty(logoBgColor) ? "transparent" : logoBgColor);
-                            text-align: @(logoAlignment == "left" ? "left" : logoAlignment == "right" ? "right" : "center");">
-                <img src="@Model.LogoUrl"
-                     alt="@(string.IsNullOrEmpty(logoAltText) ? "Form Logo" : logoAltText)"
-                     style="@(Model.LogoHeight.HasValue ? $"height:{Model.LogoHeight}px;" : "max-height:110px;")@(Model.LogoWidth.HasValue ? $"width:{Model.LogoWidth}px;" : "width:auto;")" />
+            <div class="form-closed-wrap">
+                <h3>Registration Closed</h3>
+                <p>This registration form is no longer accepting submissions.</p>
+                <p>For assistance, please contact our support team:</p>
+                <div class="closed-contact">
+                    @if (objAppInfo != null && !string.IsNullOrEmpty(objAppInfo.CompanyPhone))
+                    {
+                        <text>📞 @objAppInfo.CompanyPhone<br /></text>
+                    }
+                    @if (objAppInfo != null && !string.IsNullOrEmpty(objAppInfo.CompanyEmail))
+                    {
+                        <text>✉️ @objAppInfo.CompanyEmail</text>
+                    }
+                </div>
             </div>
         }
+        else
+        {
+            
+                var logoBgColor = "";
+                var logoAlignment = "center";
+                var logoAltText = "";
+                if (!string.IsNullOrEmpty(Model.DesignJson))
+                {
+                    try
+                    {
+                        var designObj = Newtonsoft.Json.Linq.JObject.Parse(Model.DesignJson);
+                        if (designObj["logoBgColor"] != null) logoBgColor = designObj["logoBgColor"].ToString();
+                        if (designObj["logoAlignment"] != null) logoAlignment = designObj["logoAlignment"].ToString();
+                        if (designObj["logoAltText"] != null) logoAltText = designObj["logoAltText"].ToString();
+                    }
+                    catch { }
+                }
+            
 
-        <div class="form-title-wrap">
-            <h3>@Model.Title</h3>
-        </div>
-        <div class="form-body">
-            <form id="dynamicForm">
-                <div id="formFieldsContainer"></div>
-                <div class="submit-wrap">
-                    <button type="submit" class="btn btn-submit-form">Submit</button>
+            @if (!string.IsNullOrEmpty(Model.LogoUrl))
+            {
+                <div class="form-logo-wrap"
+                     style="background-color: @(string.IsNullOrEmpty(logoBgColor) ? "transparent" : logoBgColor);
+                                text-align: @(logoAlignment == "left" ? "left" : logoAlignment == "right" ? "right" : "center");">
+                    <img src="@Model.LogoUrl"
+                         alt="@(string.IsNullOrEmpty(logoAltText) ? "Form Logo" : logoAltText)"
+                         style="@(Model.LogoHeight.HasValue ? $"height:{Model.LogoHeight}px;" : "max-height:110px;")@(Model.LogoWidth.HasValue ? $"width:{Model.LogoWidth}px;" : "width:auto;")" />
                 </div>
-            </form>
-        </div>
+            }
+
+            <div class="form-title-wrap">
+                <h3>@Model.Title</h3>
+            </div>
+            <div class="form-body">
+                <form id="dynamicForm" novalidate>
+                    <div id="formFieldsContainer"></div>
+                    <div class="submit-wrap">
+                        <button type="submit" class="btn btn-submit-form">Submit</button>
+                    </div>
+                </form>
+            </div>
+        }
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -551,11 +659,44 @@
                     break;
 
                 case 'fileupload':
-                case 'image':
+                case 'image': {
                     input = document.createElement('input');
                     input.type = 'file';
                     input.className = 'form-control';
+
+                    // ✅ ADDED — Image fields now only accept jpg/jpeg/png; File Upload fields
+                    // only accept pdf/doc/docx. Previously any file type (.exe, etc.) was accepted.
+                    const isImageField = field.type === 'image';
+                    const allowedExt = isImageField ? ['jpg', 'jpeg', 'png'] : ['pdf', 'doc', 'docx'];
+                    input.accept = isImageField
+                        ? '.jpg,.jpeg,.png,image/jpeg,image/png'
+                        : '.pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+                    input.addEventListener('change', function () {
+                        // ✅ ADDED — a newly chosen file needs to be uploaded again; drop any URL
+                        // saved from a previous selection so uploadPendingFiles() picks it up.
+                        delete this.dataset.uploadedUrl;
+                        if (!this.files || !this.files.length) return;
+                        const fileName = this.files[0].name;
+                        const ext = fileName.split('.').pop().toLowerCase();
+                        if (!allowedExt.includes(ext)) {
+                            alert(isImageField
+                                ? 'Invalid file. Please upload only JPG, JPEG, or PNG images.'
+                                : 'Invalid file. Please upload only PDF or Word documents (.pdf, .doc, .docx).');
+                            this.value = '';
+                        }
+                        // ✅ ADDED — file inputs don't get jQuery Validate's usual focusout
+                        // re-check reliably (the native file picker dialog swallows the blur), so
+                        // the "required" error used to hang around until the visitor clicked into
+                        // some other field. Re-validate this input the instant a file is chosen
+                        // (or cleared for a bad extension above) so the message clears/reappears
+                        // immediately.
+                        if ($(this).closest('form').data('validator')) {
+                            $(this).valid();
+                        }
+                    });
                     break;
+                }
 
                 case 'signature':
                     fieldEl.innerHTML += `<div style="border:1px dashed #ccc; height:80px; background:#fafbfc; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#aaa;">Signature pad (draw here)</div>`;
@@ -581,16 +722,36 @@
                     const gwLabel = { paypal: 'PayPal', stripe: 'Stripe', square: 'Square' }[field.gateway] || field.gateway;
                     const amtLabel = field.amountType === 'fixed'
                         ? `${field.currency} ${Number(field.amount || 0).toFixed(2)}`
-                        : (field.amountType === 'productlist' ? 'Amount based on your selections above' : 'Enter amount below');
+                        : (field.amountType === 'productlist' ? 'Amount based on your selections below' : 'Enter amount below');
+
+                    // ✅ ADDED — actual selectable product list with qty, sourced from field.products
+                    // (previously "Based on product list" showed no products at all)
+                    const productListHtml = (field.amountType === 'productlist' && Array.isArray(field.products) && field.products.length)
+                        ? `<div class="mb-2">${field.products.map((p, idx) => `
+                            <div class="d-flex justify-content-between align-items-center border-bottom py-1">
+                                <div>
+                                    <div>${p.name || '(unnamed product)'}</div>
+                                    <div class="text-muted small">${field.currency || 'USD'} ${Number(p.price || 0).toFixed(2)}</div>
+                                </div>
+                                <input type="number" min="0" step="1" class="form-control" style="width:80px;"
+                                       value="0" placeholder="Qty"
+                                       data-payment-product="${field.id}" data-product-index="${idx}" data-product-price="${p.price || 0}" />
+                            </div>`).join('')}</div>`
+                        : (field.amountType === 'productlist' ? '<p class="text-muted small">No products configured for this payment field.</p>' : '');
+
                     fieldEl.innerHTML += `
                         <div class="payment-box">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <span class="text-muted small">${gwLabel}</span>
-                                <span class="payment-amount-badge">${amtLabel}</span>
+                                <span class="payment-amount-badge" id="paymentAmountBadge_${field.id}">${amtLabel}</span>
                             </div>
                             ${field.amountType === 'userdefined' ? `
                             <input type="number" min="0" step="0.01" class="form-control mb-2" placeholder="Amount (${field.currency})" data-field-id="${field.id}_amount" />` : ''}
-                            <div id="paymentMount_${field.id}"></div>
+                            ${productListHtml}
+                            <div class="payment-mount-wrap" style="position:relative;">
+                                <div id="paymentMount_${field.id}"></div>
+                                ${field.gateway === 'paypal' ? `<div id="paypalClickGuard_${field.id}" class="paypal-click-guard" title="Click to continue"></div>` : ''}
+                            </div>
                             <div id="paymentMsg_${field.id}" class="payment-message"></div>
                         </div>`;
                     break;
@@ -622,16 +783,28 @@
                         const testKey = '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'; // Google's public test key — always passes
                         captchaBox.innerHTML = `<div class="g-recaptcha" data-sitekey="${field.captchaSiteKey || testKey}"></div>`;
                     } else if (field.captchaType === 'jotcaptcha') {
+                        // ✅ CHANGED — was just a plain "I am human" checkbox (no real check at all).
+                        // Now shows a distorted-text image the visitor has to read and type in,
+                        // like a classic CAPTCHA, with a refresh icon to get a new challenge.
                         captchaBox.innerHTML = `
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="jotcaptcha_${field.id}">
-                                <label class="form-check-label" for="jotcaptcha_${field.id}">I am human</label>
+                            <div class="jotcaptcha-box">
+                                <div class="jotcaptcha-img-wrap">
+                                    <canvas id="jotcaptchaCanvas_${field.id}" width="160" height="55"></canvas>
+                                </div>
+                                <div class="input-group jotcaptcha-input-group">
+                                    <input type="text" class="form-control" id="jotcaptchaInput_${field.id}" name="jotcaptcha_${field.id}" placeholder="Type the text above" autocomplete="off" />
+                                    <button type="button" class="jotcaptcha-refresh" title="Get a new challenge" onclick="refreshJotCaptcha('${field.id}')">↻</button>
+                                </div>
                             </div>`;
                     } else {
                         const testKey = '10000000-ffff-ffff-ffff-000000000001'; // hCaptcha's public test key — always passes
                         captchaBox.innerHTML = `<div class="h-captcha" data-sitekey="${field.captchaSiteKey || testKey}"></div>`;
                     }
                     fieldEl.appendChild(captchaBox);
+                    // ✅ ADDED — draw the first JotCaptcha challenge once the canvas is in the DOM
+                    if (field.captchaType === 'jotcaptcha') {
+                        setTimeout(function () { drawJotCaptcha(field.id); }, 0);
+                    }
                     break;
                 }
 
@@ -640,6 +813,12 @@
                     input.type = (field.type === 'email' ? 'email' : field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : field.type === 'phone' ? 'tel' : 'text');
                     input.className = 'form-control';
                     input.placeholder = field.placeholder || '';
+                    if (field.type === 'phone') {
+                        // ✅ ADDED — blocks letters while typing; the phoneFormat validation rule is the backstop
+                        input.addEventListener('input', function () {
+                            this.value = this.value.replace(/[^0-9+\-\s()]/g, '');
+                        });
+                    }
             }
 
             // Set common attributes for input types
@@ -679,6 +858,119 @@
 
         // ✅ ADDED — Apply designer styles after building all fields
         applyDesignStyles(design);
+
+        // ✅ ADDED — jQuery Validate setup (replaces native browser "Please fill out this
+        // field" popups with proper inline validation messages)
+        function attachJQueryValidation() {
+            // Every rendered control needs a `name` for jQuery Validate to track it —
+            // reuse the data-field-id we already set on every input/select/textarea.
+            document.querySelectorAll('[data-field-id]').forEach(el => {
+                if (!el.name && (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA')) {
+                    el.name = el.getAttribute('data-field-id');
+                }
+            });
+
+            $.validator.addMethod('phoneFormat', function (value, element) {
+                return this.optional(element) || /^[0-9+\-\s()]{7,20}$/.test(value);
+            }, 'Please enter a valid phone number (numbers only).');
+
+            // ✅ ADDED — lets JotCaptcha plug into jQuery Validate so a wrong/blank answer shows
+            // the same inline red message as every other field, instead of a separate alert().
+            $.validator.addMethod('jotcaptchaMatch', function (value, element) {
+                const fieldId = element.id.replace('jotcaptchaInput_', '');
+                const answer = jotCaptchaAnswers[fieldId];
+                return this.optional(element) || (!!answer && value.trim().toLowerCase() === answer.toLowerCase());
+            }, 'The text you entered did not match. Please try again.');
+
+            const rules = {};
+            const messages = {};
+
+            schema.forEach(field => {
+                if (field.type === 'fullname') {
+                    if (field.required) {
+                        rules[field.id + '_first'] = { required: true };
+                        rules[field.id + '_last'] = { required: true };
+                        messages[field.id + '_first'] = { required: 'First name is required' };
+                        messages[field.id + '_last'] = { required: 'Last name is required' };
+                    }
+                    return;
+                }
+                if (field.type === 'address') {
+                    if (field.required) {
+                        rules[field.id + '_street'] = { required: true };
+                        messages[field.id + '_street'] = { required: 'Street address is required' };
+                    }
+                    return;
+                }
+                if (field.type === 'payment') {
+                    // ✅ ADDED — the payment amount field previously had no validation rule at
+                    // all, so clicking Submit (or the PayPal button) proceeded even when the
+                    // visitor left the amount blank. Only applies when the amount is user-entered;
+                    // fixed and product-list amounts don't need this since there's nothing to type.
+                    if (field.amountType === 'userdefined') {
+                        rules[field.id + '_amount'] = { required: true, min: 0.01 };
+                        messages[field.id + '_amount'] = {
+                            required: 'Please enter amount',
+                            min: 'Please enter an amount greater than 0'
+                        };
+                    }
+                    return;
+                }
+                if (field.type === 'captcha') {
+                    // ✅ CHANGED — JotCaptcha now gets a real jQuery Validate rule so wrong/blank
+                    // answers surface inline like every other field. reCAPTCHA/hCaptcha keep using
+                    // their own widget check in the submit handler below (there's no text input
+                    // to attach a jQuery Validate message to).
+                    if (field.captchaType === 'jotcaptcha') {
+                        rules['jotcaptcha_' + field.id] = { required: true, jotcaptchaMatch: true };
+                        messages['jotcaptcha_' + field.id] = {
+                            required: 'Please enter the text shown in the image',
+                            jotcaptchaMatch: 'The text you entered did not match. Please try again.'
+                        };
+                    }
+                    return;
+                }
+                if (['heading', 'paragraph', 'signature', 'starrating', 'productlist'].includes(field.type)) {
+                    return;
+                }
+
+                const rule = {};
+                if (field.required) rule.required = true;
+                if (field.type === 'email') rule.email = true;
+                if (field.type === 'phone') rule.phoneFormat = true;
+
+                if (Object.keys(rule).length) {
+                    rules[field.id] = rule;
+                    messages[field.id] = {
+                        required: (field.label || 'This field') + ' is required',
+                        email: 'Please enter a valid email address',
+                        phoneFormat: 'Please enter a valid phone number (numbers only)'
+                    };
+                }
+            });
+
+            $('#dynamicForm').validate({
+                ignore: [],
+                rules: rules,
+                messages: messages,
+                errorClass: 'text-danger small mt-1 d-block',
+                errorElement: 'div',
+                highlight: function (element) { $(element).addClass('is-invalid'); },
+                unhighlight: function (element) { $(element).removeClass('is-invalid'); },
+                // ✅ ADDED — after a failed submit, generate a fresh JotCaptcha challenge for any
+                // field the visitor actually typed a wrong answer into (skip fields left blank —
+                // no point burning a new challenge before they've even tried).
+                invalidHandler: function (event, validator) {
+                    (validator.errorList || []).forEach(function (err) {
+                        const el = err.element;
+                        if (el && el.id && el.id.indexOf('jotcaptchaInput_') === 0 && el.value.trim()) {
+                            refreshJotCaptcha(el.id.replace('jotcaptchaInput_', ''));
+                        }
+                    });
+                }
+            });
+        }
+        attachJQueryValidation();
 
         // ============================================================
         // STAR RATING HELPER
@@ -720,7 +1012,56 @@
                     const el = document.querySelector(`[data-field-id="${paymentField.id}_amount"]`);
                     return el ? parseFloat(el.value || '0') : 0;
                 }
+                if (paymentField.amountType === 'productlist') {
+                    // ✅ ADDED — sums qty * price across every product row for this payment field
+                    const rows = document.querySelectorAll(`[data-payment-product="${paymentField.id}"]`);
+                    let total = 0;
+                    rows.forEach(row => {
+                        const qty = parseFloat(row.value || '0');
+                        const price = parseFloat(row.getAttribute('data-product-price') || '0');
+                        total += qty * price;
+                    });
+                    return total;
+                }
                 return paymentField.amount || 0;
+            }
+
+            // ✅ ADDED — clear, plain-language message for a missing/zero payment amount,
+            // worded to match how the amount is actually collected for this field.
+            function amountErrorMessage() {
+                if (paymentField.amountType === 'userdefined') return 'Please enter a payment amount to continue.';
+                if (paymentField.amountType === 'productlist') return 'Please select a quantity for at least one item to continue.';
+                return 'Please enter a valid payment amount.';
+            }
+
+            // ✅ ADDED — once the amount error has been shown at least once (via a click on
+            // PayPal with nothing selected), keep it live: clear it the instant a quantity makes
+            // the amount valid, and bring it back automatically if the visitor drops the
+            // quantity back down to 0 — instead of it just sitting there stale either way.
+            let amountValidationArmed = false;
+
+            function syncAmountValidationLive() {
+                if (!amountValidationArmed) return;
+                const isShowingAmountError = msgEl.classList.contains('payment-error') && msgEl.textContent === amountErrorMessage();
+                if (currentAmount() > 0) {
+                    if (isShowingAmountError) {
+                        msgEl.style.display = 'none';
+                        msgEl.textContent = '';
+                    }
+                } else if (!isShowingAmountError) {
+                    showPaymentError(amountErrorMessage());
+                }
+            }
+
+            // ✅ ADDED — keeps the amount badge in sync as the visitor changes product quantities
+            if (paymentField.amountType === 'productlist') {
+                const badge = document.getElementById('paymentAmountBadge_' + paymentField.id);
+                document.querySelectorAll(`[data-payment-product="${paymentField.id}"]`).forEach(row => {
+                    row.addEventListener('input', function () {
+                        if (badge) badge.textContent = `${paymentField.currency || 'USD'} ${currentAmount().toFixed(2)}`;
+                        syncAmountValidationLive();
+                    });
+                });
             }
 
             const gateways = {
@@ -775,11 +1116,39 @@
 
                         try {
                             paypal.Buttons({
+                                // ✅ ADDED — PayPal renders its own button outside the normal
+                                // <form> submit flow, so without this it skipped all field/captcha
+                                // validation and went straight to checkout. This runs the same
+                                // jQuery Validate check (and captcha check) before letting the
+                                // popup open, and cancels it if anything required is missing.
+                                onClick: function (data, actions) {
+                                    if (!$('#dynamicForm').valid()) {
+                                        return actions.reject();
+                                    }
+                                    const captchaField = getCaptchaField();
+                                    if (captchaField && !isCaptchaVerified(captchaField)) {
+                                        alertCaptchaFailure(captchaField);
+                                        return actions.reject();
+                                    }
+                                    // ✅ ADDED — catch a missing/zero amount here, before PayPal's
+                                    // popup opens, instead of letting checkout start and fail with
+                                    // PayPal's own "Expected an order id to be passed" error.
+                                    if (currentAmount() <= 0) {
+                                        amountValidationArmed = true;
+                                        showPaymentError(amountErrorMessage());
+                                        return actions.reject();
+                                    }
+                                    return actions.resolve();
+                                },
                                 createOrder: function (data, actions) {
                                     const amount = currentAmount();
                                     if (amount <= 0) {
-                                        showPaymentError('Please enter a valid payment amount.');
-                                        return;
+                                        // Safety net only — onClick above should already have
+                                        // stopped this. Reject cleanly so PayPal doesn't surface
+                                        // its own confusing order-id error over ours.
+                                        amountValidationArmed = true;
+                                        showPaymentError(amountErrorMessage());
+                                        return Promise.reject(new Error('Invalid amount'));
                                     }
                                     return actions.order.create({
                                         purchase_units: [{
@@ -809,7 +1178,11 @@
                                     });
                                 },
                                 onError: function (err) {
-                                    showPaymentError('Payment failed: ' + (err.message || err));
+                                    // ✅ CHANGED — skip PayPal's own generic wording for the
+                                    // amount rejection above; our clearer message is already showing.
+                                    if (!(err && err.message === 'Invalid amount')) {
+                                        showPaymentError('Payment failed: ' + (err.message || err));
+                                    }
                                     if (paymentResolve) {
                                         paymentResolve(null);
                                     }
@@ -821,6 +1194,37 @@
                                     }
                                 }
                             }).render(mountEl);
+
+                            // ✅ ADDED — wires up the click-guard overlay (see .paypal-click-guard
+                            // CSS comment above) so validation runs before PayPal's own click
+                            // handler / popup pre-open ever fires.
+                            const guard = document.getElementById('paypalClickGuard_' + paymentField.id);
+                            if (guard) {
+                                guard.addEventListener('click', function (e) {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    if (!$('#dynamicForm').valid()) {
+                                        return;
+                                    }
+                                    const captchaField = getCaptchaField();
+                                    if (captchaField && !isCaptchaVerified(captchaField)) {
+                                        alertCaptchaFailure(captchaField);
+                                        return;
+                                    }
+                                    // ✅ ADDED — same amount check as onClick above, so the guard
+                                    // won't hand off to the real PayPal button until an amount is
+                                    // actually entered/selected.
+                                    if (currentAmount() <= 0) {
+                                        amountValidationArmed = true;
+                                        showPaymentError(amountErrorMessage());
+                                        return;
+                                    }
+                                    // Everything required is filled in — reveal the real PayPal
+                                    // button underneath so the visitor's next click opens checkout
+                                    // with no flash, since validation already passed.
+                                    guard.style.display = 'none';
+                                });
+                            }
                         } catch (e) {
                             showPaymentError('Failed to initialize PayPal: ' + e.message);
                         }
@@ -914,12 +1318,14 @@
                 usesOwnButton: paymentField.gateway === 'paypal'
             };
 
-            // Hide submit button for PayPal
-            if (PaymentBridge.usesOwnButton) {
-                const submitBtn = document.querySelector('.btn-submit-form');
-                if (submitBtn) {
-                    submitBtn.style.display = 'none';
-                }
+            // ✅ CHANGED — the generic Submit button never actually completed a PayPal payment
+            // (only PayPal's own button does), which was confusing. It's now hidden whenever
+            // PayPal is the gateway; the visitor uses the PayPal button instead, and that
+            // button's own onClick handler (above) still enforces every required field —
+            // including the amount — before it lets the checkout popup open.
+            if (paymentField.gateway === 'paypal') {
+                const submitWrap = document.querySelector('.submit-wrap');
+                if (submitWrap) submitWrap.style.display = 'none';
             }
         }
 
@@ -964,8 +1370,11 @@
                     data[field.label] = wrap ? wrap.getAttribute('data-rating') : '0';
                 }
                 else if (field.type === 'fileupload' || field.type === 'image') {
+                    // ✅ CHANGED — use the real uploaded URL (set by uploadPendingFiles() during
+                    // submit) so the submission can be previewed later. Falls back to just the
+                    // filename if, for some reason, the upload never happened.
                     const el = document.querySelector(`[data-field-id="${field.id}"]`);
-                    data[field.label] = el && el.files.length ? el.files[0].name : '';
+                    data[field.label] = el && el.files.length ? (el.dataset.uploadedUrl || el.files[0].name) : '';
                 }
                 else if (field.type === 'captcha') {
                     // ✅ ADDED — record whether the visitor actually passed the captcha
@@ -983,13 +1392,89 @@
             return data;
         }
 
+        // ✅ ADDED — JotCaptcha: draws a distorted-text challenge on a canvas and checks the
+        // visitor's typed answer against it (previously JotCaptcha was just an unchecked
+        // "I am human" checkbox with no real verification at all).
+        const jotCaptchaAnswers = {};
+
+        function generateJotCaptchaText(len) {
+            const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'; // skips 0/O, 1/l/I
+            let s = '';
+            for (let i = 0; i < len; i++) s += chars.charAt(Math.floor(Math.random() * chars.length));
+            return s;
+        }
+
+        function drawJotCaptcha(fieldId) {
+            const canvas = document.getElementById('jotcaptchaCanvas_' + fieldId);
+            if (!canvas || !canvas.getContext) return;
+            const text = generateJotCaptchaText(6);
+            jotCaptchaAnswers[fieldId] = text;
+
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width, h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+
+            ctx.fillStyle = '#eef1f5';
+            ctx.fillRect(0, 0, w, h);
+
+            // noise lines
+            for (let i = 0; i < 6; i++) {
+                ctx.strokeStyle = `rgba(${Math.floor(Math.random() * 150)},${Math.floor(Math.random() * 150)},${Math.floor(Math.random() * 150)},0.4)`;
+                ctx.beginPath();
+                ctx.moveTo(Math.random() * w, Math.random() * h);
+                ctx.lineTo(Math.random() * w, Math.random() * h);
+                ctx.stroke();
+            }
+
+            // distorted characters
+            const charSlot = w / (text.length + 1);
+            for (let i = 0; i < text.length; i++) {
+                ctx.save();
+                const x = charSlot * (i + 0.9);
+                const y = h / 2 + (Math.random() * 10 - 5);
+                ctx.translate(x, y);
+                ctx.rotate((Math.random() * 0.6 - 0.3));
+                ctx.font = `bold ${Math.floor(h * 0.55)}px Georgia, serif`;
+                ctx.fillStyle = `rgb(${30 + Math.floor(Math.random() * 80)},${30 + Math.floor(Math.random() * 80)},${30 + Math.floor(Math.random() * 80)})`;
+                ctx.fillText(text[i], 0, 0);
+                ctx.restore();
+            }
+
+            // noise dots
+            for (let i = 0; i < 40; i++) {
+                ctx.fillStyle = `rgba(0,0,0,${Math.random() * 0.15})`;
+                ctx.beginPath();
+                ctx.arc(Math.random() * w, Math.random() * h, 1, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function refreshJotCaptcha(fieldId) {
+            drawJotCaptcha(fieldId);
+            const input = document.getElementById('jotcaptchaInput_' + fieldId);
+            if (input) input.value = '';
+        }
+
+        // ✅ ADDED — shared helper so both the Submit flow and the PayPal guard show a message
+        // that matches whichever captcha type is on the form, and JotCaptcha gets a fresh
+        // challenge after a wrong guess instead of silently reusing the same one.
+        function alertCaptchaFailure(field) {
+            if (field.captchaType === 'jotcaptcha') {
+                alert('The text you entered did not match. A new challenge has been generated — please try again.');
+                refreshJotCaptcha(field.id);
+            } else {
+                alert('Please verify that you are human.');
+            }
+        }
+
         // ✅ ADDED — checks the right API for whichever captcha type this form uses
         function isCaptchaVerified(field) {
             if (field.captchaType === 'recaptcha') {
                 return typeof grecaptcha !== 'undefined' && grecaptcha.getResponse().length > 0;
             } else if (field.captchaType === 'jotcaptcha') {
-                const box = document.getElementById('jotcaptcha_' + field.id);
-                return !!(box && box.checked);
+                const input = document.getElementById('jotcaptchaInput_' + field.id);
+                const answer = jotCaptchaAnswers[field.id];
+                return !!(input && answer && input.value.trim().toLowerCase() === answer.toLowerCase());
             } else {
                 return typeof hcaptcha !== 'undefined' && hcaptcha.getResponse().length > 0;
             }
@@ -999,7 +1484,56 @@
             return schema.find(f => f.type === 'captcha');
         }
 
-        function doSubmit(paymentResult) {
+        // ✅ ADDED — actually sends any selected "Upload File"/"Image" fields to the server
+        // before submitting, so the submission stores a real, previewable URL instead of just a
+        // filename. Skips fields already uploaded (dataset.uploadedUrl set) and fields with no
+        // file chosen. Returns false (and shows an alert) if any upload fails, so submission can
+        // be stopped rather than silently going through with a missing file.
+        async function uploadPendingFiles() {
+            const fileFields = schema.filter(f => f.type === 'fileupload' || f.type === 'image');
+            for (const field of fileFields) {
+                const el = document.querySelector(`[data-field-id="${field.id}"]`);
+                if (!el || !el.files || !el.files.length || el.dataset.uploadedUrl) continue;
+                try {
+                    const fd = new FormData();
+                    fd.append('file', el.files[0]);
+                    const res = await fetch('/Admin/Form/UploadFormFieldFile', { method: 'POST', body: fd });
+                    const result = await res.json();
+                    if (result.success) {
+                        el.dataset.uploadedUrl = result.url;
+                    } else {
+                        alert('Failed to upload "' + field.label + '": ' + (result.message || 'Unknown error'));
+                        return false;
+                    }
+                } catch (err) {
+                    alert('Failed to upload "' + field.label + '": ' + err.message);
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        async function doSubmit(paymentResult) {
+            // ✅ ADDED — upload any pending files first; bail out (leaving the visitor on the
+            // form) if a file fails to upload instead of submitting without it.
+            const submitBtn = document.querySelector('.btn-submit-form');
+            const originalBtnText = submitBtn ? submitBtn.textContent : null;
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Uploading files...';
+            }
+            const uploadsOk = await uploadPendingFiles();
+            if (!uploadsOk) {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalBtnText;
+                }
+                return;
+            }
+            if (submitBtn) {
+                submitBtn.textContent = 'Submitting...';
+            }
+
             const formData = collectFieldData();
             const payload = {
                 data: formData,
@@ -1019,11 +1553,19 @@
                         window.location.href = '/Admin/Form/ThankYou/' + formId;
                     } else {
                         alert('Submission failed: ' + result.message);
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.textContent = originalBtnText;
+                        }
                     }
                 })
                 .catch(err => {
                     alert('An error occurred: ' + err.message);
                     console.error('Submission error:', err);
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = originalBtnText;
+                    }
                 });
         }
 
@@ -1033,10 +1575,17 @@
         document.getElementById('dynamicForm').addEventListener('submit', function (e) {
             e.preventDefault();
 
+            // ✅ CHANGED — jQuery Validate now owns field validation (shows its own inline
+            // messages instead of the browser's native popup). It also paints error messages
+            // on screen as a side effect, so nothing else to do here if it fails.
+            if (!$('#dynamicForm').valid()) {
+                return;
+            }
+
             // ✅ ADDED — block submission until the captcha is actually solved
             const captchaField = getCaptchaField();
             if (captchaField && !isCaptchaVerified(captchaField)) {
-                alert('Please verify that you are human.');
+                alertCaptchaFailure(captchaField);
                 return;
             }
 
@@ -1048,7 +1597,12 @@
             }
 
             if (PaymentBridge.usesOwnButton) {
-                console.log('💰 PayPal form - waiting for PayPal button click');
+                // ✅ CHANGED — all required fields + captcha already passed at this point (the
+                // checks above ran first). PayPal itself has to be triggered by a direct click on
+                // its own button though — browsers block the checkout popup if it's opened from
+                // any other button's click handler — so guide the visitor to it instead of
+                // silently doing nothing.
+                showPaymentError('Please click the PayPal button above to complete your payment.');
                 return;
             }
 

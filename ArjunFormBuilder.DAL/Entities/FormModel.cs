@@ -9,10 +9,12 @@ namespace ArjunFormBuilder.Entities
     {
         public Int64 RId { get; set; }
         public Int64 FormId { get; set; }
+        public Int64 SubmissionCount { get; set; }
         public string Title { get; set; }
         public string FormSchema { get; set; }
         public Int64 ChapterId { get; set; } = 1;
         public bool IsActive { get; set; }
+        public bool IsFormEnable { get; set; }
         public string CreatedBy { get; set; }
         public DateTime CreatedDate { get; set; }
         public DateTime? ModifiedDate { get; set; }

@@ -74,7 +74,7 @@ namespace ArjunFormBuilder.DAL
             }
             return dt;
         }
-
+     
         public DataTable GetFormSubmissionsListWithPagination(Int64 formId, string Search, string Sort, int PageNo, int Items, ref int Total)
         {
             DataTable dt = null;
@@ -138,6 +138,27 @@ namespace ArjunFormBuilder.DAL
                     new SqlParameter("@QStatus", 0)
                 };
                 _sqlP[1].Direction = ParameterDirection.Output;
+                _dbAccess.SP_ExecuteScalar("UpdateFormEnable", ref _sqlP);
+                status = Convert.ToInt32(_sqlP[1].Value);
+                result = status;
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+            return result;
+        }
+        public Int64 UpdateFormEnable(Int64 formId, ref int status)
+        {
+            Int64 result = 0;
+            try
+            {
+                _sqlP = new[]
+                {
+                    new SqlParameter("@FormId", formId),
+                    new SqlParameter("@QStatus", 0)
+                };
+                _sqlP[1].Direction = ParameterDirection.Output;
                 _dbAccess.SP_ExecuteScalar("USP_FormStatusUpdate", ref _sqlP);
                 status = Convert.ToInt32(_sqlP[1].Value);
                 result = status;
@@ -161,6 +182,27 @@ namespace ArjunFormBuilder.DAL
                 };
                 _sqlP[1].Direction = ParameterDirection.Output;
                 _dbAccess.SP_ExecuteScalar("USP_DeleteForm", ref _sqlP);
+                status = Convert.ToInt32(_sqlP[1].Value);
+                result = status;
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+            return result;
+        }
+        public Int64 DeleteFormSubmission(Int64 submissionId, ref int status)
+        {
+            Int64 result = 0;
+            try
+            {
+                _sqlP = new[]
+                {
+                    new SqlParameter("@submissionId", submissionId),
+                    new SqlParameter("@QStatus", 0)
+                };
+                _sqlP[1].Direction = ParameterDirection.Output;
+                _dbAccess.SP_ExecuteScalar("DeleteFormSubmission", ref _sqlP);
                 status = Convert.ToInt32(_sqlP[1].Value);
                 result = status;
             }

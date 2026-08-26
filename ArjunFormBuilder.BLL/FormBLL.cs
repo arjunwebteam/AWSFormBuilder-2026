@@ -37,6 +37,7 @@ namespace ArjunFormBuilder.BLL
                 objFormModel.ThankYouContent = (dt.Rows[0].Table.Columns.Contains("ThankYouContent") && dt.Rows[0]["ThankYouContent"] != DBNull.Value)? dt.Rows[0]["ThankYouContent"].ToString(): null;
                 objFormModel.ChapterId = (dt.Rows[0]["ChapterId"] != DBNull.Value ? Convert.ToInt64(dt.Rows[0]["ChapterId"]) : 0);
                 objFormModel.IsActive = Convert.ToBoolean(dt.Rows[0]["IsActive"]);
+                objFormModel.IsFormEnable = Convert.ToBoolean(dt.Rows[0]["IsFormEnable"]);
                 objFormModel.CreatedDate = Convert.ToDateTime(dt.Rows[0]["CreatedDate"]);
                 objFormModel.ModifiedDate = (dt.Rows[0]["ModifiedDate"] != DBNull.Value ? Convert.ToDateTime(dt.Rows[0]["ModifiedDate"]) : (DateTime?)null);
             }
@@ -196,10 +197,12 @@ namespace ArjunFormBuilder.BLL
                     objForm.FormId = Convert.ToInt64(dr["FormId"].ToString());
                     objForm.Title = dr["Title"].ToString();
                     objForm.IsActive = Convert.ToBoolean(dr["IsActive"]);
+                    objForm.IsFormEnable = Convert.ToBoolean(dr["IsFormEnable"]);
                     objForm.CreatedBy = (dr["CreatedBy"] != DBNull.Value ? dr["CreatedBy"].ToString() : null);
                     objForm.CreatedDate = Convert.ToDateTime(dr["CreatedDate"]);
                     objForm.ModifiedDate = (dr["ModifiedDate"] != DBNull.Value ? Convert.ToDateTime(dr["ModifiedDate"]) : (DateTime?)null);
                     objForm.ChapterId = (dr["ChapterId"] != DBNull.Value ? Convert.ToInt64(dr["ChapterId"]) : 0);
+                    objForm.SubmissionCount = (dr["SubmissionCount"] != DBNull.Value ? Convert.ToInt64(dr["SubmissionCount"]) : 0);
                     lstForms.Add(objForm);
                 }
             }
@@ -207,6 +210,10 @@ namespace ArjunFormBuilder.BLL
         }
 
         public Int64 UpdateFormStatus(Int64 formId, ref int status)
+        {
+            return _formDAL.UpdateFormStatus(formId, ref status);
+        }
+        public Int64 UpdateFormEnable(Int64 formId, ref int status)
         {
             return _formDAL.UpdateFormStatus(formId, ref status);
         }
@@ -218,7 +225,11 @@ namespace ArjunFormBuilder.BLL
         {
             return _formDAL.DeleteForm(formId, ref status);
         }
-
+        public Int64 DeleteFormSubmission(Int64 submissionId, ref int status)
+        {
+            return _formDAL.DeleteFormSubmission(submissionId, ref status);
+        }
+      
         public Int64 SaveFormSubmission(Int64 formId, string submittedData, string submittedBy,
             string paymentStatus, string paymentTxnId, string paymentGateway, decimal? paymentAmount, string paymentCurrency,
             ref int status)
