@@ -213,7 +213,7 @@ namespace ArjunFormBuilder.DAL
             return result;
         }
 
-        public Int64 SaveFormSchema(int? formId, string title, string formSchema, Int64 chapterId, string createdBy, string logoUrl, int? logoWidth, int? logoHeight, string designJson, ref int status)
+        public Int64 SaveFormSchema(int? formId, string title, string formSchema, Int64 chapterId, string createdBy, string logoUrl, int? logoWidth, int? logoHeight, string designJson, string conditionsJson, ref int status)
         {
             Int64 newFormId = 0;
             try
@@ -228,13 +228,14 @@ namespace ArjunFormBuilder.DAL
             new SqlParameter("@LogoUrl", (object)logoUrl ?? DBNull.Value),
             new SqlParameter("@LogoWidth", (object)logoWidth ?? DBNull.Value),
             new SqlParameter("@LogoHeight", (object)logoHeight ?? DBNull.Value),
-            new SqlParameter("@DesignJson", (object)designJson ?? DBNull.Value),   
+            new SqlParameter("@DesignJson", (object)designJson ?? DBNull.Value),
+            new SqlParameter("@ConditionsJson", (object)conditionsJson ?? DBNull.Value),   // ✅ ADDED
             new SqlParameter("@QStatus", 0)
         };
-                _sqlP[9].Direction = ParameterDirection.Output;   
+                _sqlP[10].Direction = ParameterDirection.Output;   // ✅ CHANGED — index shifted to 10 (ConditionsJson param inserted before it)
 
                 _dbAccess.SP_ExecuteScalar("USP_SaveFormSchema", ref _sqlP);
-                status = Convert.ToInt32(_sqlP[9].Value);          // ✅ CHANGED — index shifted to 9
+                status = Convert.ToInt32(_sqlP[10].Value);          // ✅ CHANGED — index shifted to 10
                 newFormId = status;
             }
             catch (Exception ex)

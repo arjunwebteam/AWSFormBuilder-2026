@@ -22,7 +22,8 @@ namespace ArjunFormBuilder.Entities
         public int? LogoWidth { get; set; }   
         public int? LogoHeight { get; set; }   
         public string DesignJson { get; set; } 
-        public string ThankYouContent { get; set; } 
+        public string ThankYouContent { get; set; }
+        public string ConditionsJson { get; set; }   // ✅ ADDED — saved conditional-logic rules (JSON array)
     }
     public class FormSaveRequest
     {
@@ -32,7 +33,8 @@ namespace ArjunFormBuilder.Entities
         public string LogoUrl { get; set; }
         public int? LogoWidth { get; set; }   
         public int? LogoHeight { get; set; }  
-        public string Design { get; set; }    
+        public string Design { get; set; }
+        public string Conditions { get; set; }    // ✅ ADDED — raw JSON string of the conditional-logic rules array
     }
 
     public class FormSubmitRequest

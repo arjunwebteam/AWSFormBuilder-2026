@@ -16,7 +16,7 @@ namespace ArjunFormBuilder.BLL
         public Int64 SaveFormSchema(FormSaveRequest request, string createdBy, Int64 chapterId, ref int status)
         {
             Int64 newFormId = 0;
-            newFormId = _formDAL.SaveFormSchema(request.FormId, request.Title, request.Schema, chapterId, createdBy, request.LogoUrl, request.LogoWidth, request.LogoHeight, request.Design, ref status);  // ✅ CHANGED — passes Design through
+            newFormId = _formDAL.SaveFormSchema(request.FormId, request.Title, request.Schema, chapterId, createdBy, request.LogoUrl, request.LogoWidth, request.LogoHeight, request.Design, request.Conditions, ref status);  // ✅ CHANGED — passes Conditions through
             return newFormId;
         }
 
@@ -34,6 +34,7 @@ namespace ArjunFormBuilder.BLL
                 objFormModel.LogoHeight = (dt.Rows[0].Table.Columns.Contains("LogoHeight") && dt.Rows[0]["LogoHeight"] != DBNull.Value)? Convert.ToInt32(dt.Rows[0]["LogoHeight"]): (int?)null;
         
                 objFormModel.DesignJson = (dt.Rows[0].Table.Columns.Contains("DesignJson") && dt.Rows[0]["DesignJson"] != DBNull.Value)? dt.Rows[0]["DesignJson"].ToString(): null;
+                objFormModel.ConditionsJson = (dt.Rows[0].Table.Columns.Contains("ConditionsJson") && dt.Rows[0]["ConditionsJson"] != DBNull.Value)? dt.Rows[0]["ConditionsJson"].ToString(): null;  // ✅ ADDED
                 objFormModel.ThankYouContent = (dt.Rows[0].Table.Columns.Contains("ThankYouContent") && dt.Rows[0]["ThankYouContent"] != DBNull.Value)? dt.Rows[0]["ThankYouContent"].ToString(): null;
                 objFormModel.ChapterId = (dt.Rows[0]["ChapterId"] != DBNull.Value ? Convert.ToInt64(dt.Rows[0]["ChapterId"]) : 0);
                 objFormModel.IsActive = Convert.ToBoolean(dt.Rows[0]["IsActive"]);
