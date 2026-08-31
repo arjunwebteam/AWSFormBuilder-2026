@@ -275,7 +275,7 @@ namespace ArjunFormBuilder.Areas.Admin.Controllers
             int status = 0;
             try
             {
-                _formBLL.UpdateFormEnable(FormId, ref status);
+                _formBLL.-(FormId, ref status);
                 if (status == 1)
                     return Json(new { ok = true, messageType = "success", message = "FormEnable updated successfully" });
                 else
