@@ -29,6 +29,7 @@
                 <input type="text" id="formTitle" class="form-control fb-title-input" style="width:220px;" placeholder="Form Title" />
                 <button class="btn-save-form" onclick="saveForm()">Save Form</button>
                 <button class="btn-design-toggle" onclick="toggleDesignPanel()">🎨 Form Designer</button>
+                <button class="btn-conditions-toggle" onclick="openConditionsModal()">⚙️ Conditions</button>
                 @if (ViewBag.FormId != 0)
                 {
                 <button type="button"
@@ -124,12 +125,72 @@
     </div>
 </div>
 
+<!-- ============================================================
+     ✅ ADDED — CONDITIONS MODAL
+     ============================================================ -->
+<div class="fb-cond-overlay" id="condOverlay" style="display:none;" onclick="if(event.target===this) closeConditionsModal();">
+    <div class="fb-cond-modal">
+        <div class="fb-cond-header d-flex justify-content-between align-items-center">
+            <h5 class="m-0" id="condModalTitle">⚙️ Conditional Logic</h5>
+            <button type="button" class="btn-close" onclick="closeConditionsModal()"></button>
+        </div>
+        <div class="fb-cond-body" id="condModalBody">
+            <!-- rendered by renderConditionsModal() -->
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script>
     let formFields = [];
     let selectedFieldId = null;
     let fieldCounter = 0;
     let submitSelected = false;
+
+    // ===================== ✅ ADDED — CONDITIONS STATE =====================
+    let formConditions = [];      // saved rules: [{id, triggerFieldId, operator, triggerValue, action, targetFieldIds}, ...]
+    let conditionCounter = 0;
+    let condModalView = 'list';   // 'list' | 'category' | 'editor'
+    let condDraft = null;         // rule currently being built/edited
+    let condEditingId = null;     // set when editing an existing rule instead of creating a new one
+
+    // Field types that can't sensibly drive a condition (no simple readable value)
+    const COND_TRIGGER_EXCLUDED_TYPES = ['heading', 'paragraph', 'payment', 'captcha', 'signature', 'fullname', 'address'];
+    // Field types that can't sensibly be a condition's target either (no single element to act on)
+    const COND_TARGET_EXCLUDED_TYPES = ['payment', 'captcha', 'fullname', 'address'];
+
+    const COND_OPERATORS = [
+        { id: 'equals', label: 'Equals' },
+        { id: 'notEquals', label: 'Not Equals' },
+        { id: 'contains', label: 'Contains' },
+        { id: 'isChecked', label: 'Is Checked' },
+        { id: 'isEmpty', label: 'Is Empty' },
+        { id: 'notEmpty', label: 'Is Not Empty' }
+    ];
+
+    const COND_ACTIONS = [
+        { id: 'show', label: 'Show Field(s)' },
+        { id: 'hide', label: 'Hide Field(s)' },
+        { id: 'require', label: 'Require Field(s)' },
+        { id: 'optional', label: 'Make Field(s) Optional' },
+        { id: 'enable', label: 'Enable Field(s)' },
+        { id: 'disable', label: 'Disable Field(s)' },
+        { id: 'mask', label: 'Mask Field(s)' },
+        { id: 'unmask', label: 'Unmask Field(s)' },
+        { id: 'update', label: "Copy Value Into Field(s)" }
+    ];
+
+    // ✅ ADDED — the three condition-action categories (matches the "Manage Conditional
+    // Logic" category picker: Show/Hide Field, Enable/Require/Mask Field, Update Field)
+    const COND_ACTION_GROUPS = [
+        { id: 'showhide', label: 'Show/Hide Field', desc: 'Change visibility of specific form fields', actions: ['show', 'hide'] },
+        { id: 'requiremask', label: 'Enable/Require/Mask Field', desc: 'Require or disable a field, or set a mask', actions: ['require', 'optional', 'enable', 'disable', 'mask', 'unmask'] },
+        { id: 'update', label: 'Update Field', desc: "Copy a field's value", actions: ['update'] }
+    ];
+
+    function condGroupForAction(actionId) {
+        return (COND_ACTION_GROUPS.find(g => g.actions.includes(actionId)) || COND_ACTION_GROUPS[0]).id;
+    }
 
     // Carries the current form's ID so Save knows update vs insert
     let currentFormId = @ViewBag.FormId;
@@ -158,6 +219,7 @@
         fontSize: 14,
         buttonStyleId: 'flat-blue',
         buttonCss: 'background:#4a7cf6;color:#fff;',
+        submitButtonText: 'Submit',
         logoBgColor: '',
         logoAlignment: 'center',
         logoAltText: ''
@@ -473,7 +535,7 @@
             <p class="text-muted small">Submit button can be dragged to any position in the form.</p>
             <div class="mt-3">
                 <label class="form-label">Button Text</label>
-                <input type="text" class="form-control" value="Submit" onchange="updateSubmitText(this.value)" />
+                <input type="text" class="form-control" value="${formDesign.submitButtonText || 'Submit'}" onchange="updateSubmitText(this.value)" />
             </div>
             <div class="mt-3">
                 <label class="form-label">Button Style (via Form Designer)</label>
@@ -483,9 +545,15 @@
         `;
     }
 
+    // ✅ FIXED — this used to only update the on-screen button text in the builder canvas
+    // and never actually save it anywhere. Save Form serializes `formDesign` (not the DOM),
+    // and the live form always rendered a hardcoded "Submit" — so any renamed button text
+    // was lost the moment you saved/reloaded or published. Now it's persisted on formDesign
+    // and RenderForm.cshtml reads it back out when building the live button.
     function updateSubmitText(text) {
+        formDesign.submitButtonText = text || 'Submit';
         const btn = document.querySelector('.fb-submit-btn');
-        if (btn) btn.textContent = text || 'Submit';
+        if (btn) btn.textContent = formDesign.submitButtonText;
     }
 
     // ============================================================
@@ -872,13 +940,16 @@
                 `;
             } else {
                 div.innerHTML = `
-                    <label>${field.label}${field.required ? ' <span class="text-danger">*</span>' : ''}</label>
+                    <label>${field.label}${field.required ? ' <span class="text-danger">*</span>' : ''}${field.hidden ? ' <span class="badge bg-secondary fb-hidden-badge">🙈 Hidden</span>' : ''}</label>
                     ${renderPreviewInput(field)}
                     <div class="fb-side-icons">
                         <button type="button" class="fb-icon-btn fb-icon-delete" onclick="removeField('${field.id}', event)" title="Delete">🗑</button>
                     </div>
                 `;
             }
+            // ✅ ADDED — dim hidden fields on the builder canvas so it's clear they won't
+            // show on the live form by default (they're still fully editable here).
+            if (field.hidden) div.classList.add('fb-field-hidden');
             canvas.insertBefore(div, insertBefore);
         });
 
@@ -1019,6 +1090,24 @@
         `;
     }
 
+    // ✅ ADDED — shared "Required" + "Hide" toggle row used across all Field Properties panels.
+    // "Hide" marks a field as hidden by default on the published form (Conditions can still
+    // reveal it later via a Show/Hide rule).
+    function requiredHideTogglesHtml(field) {
+        return `
+            <div class="d-flex gap-4">
+                <div class="form-check form-switch fb-toggle-switch">
+                    <input type="checkbox" class="form-check-input" role="switch" id="reqChk_${field.id}" ${field.required ? 'checked' : ''} onchange="updateField('${field.id}','required',this.checked)">
+                    <label class="form-check-label" for="reqChk_${field.id}">Required</label>
+                </div>
+                <div class="form-check form-switch fb-toggle-switch">
+                    <input type="checkbox" class="form-check-input" role="switch" id="hideChk_${field.id}" ${field.hidden ? 'checked' : ''} onchange="updateField('${field.id}','hidden',this.checked); renderCanvas();">
+                    <label class="form-check-label" for="hideChk_${field.id}">Hide</label>
+                </div>
+            </div>
+        `;
+    }
+
     function renderProps() {
         const panel = document.getElementById('propsPanel');
         const field = formFields.find(f => f.id === selectedFieldId);
@@ -1039,10 +1128,7 @@
                     <input class="form-control" placeholder="Last Name" value="${field.lastNameLabel || ''}" onchange="updateField('${field.id}','lastNameLabel',this.value)" />
                 </div>
 
-                <div class="form-check">
-                    <input type="checkbox" class="form-check-input" id="reqChk" ${field.required ? 'checked' : ''} onchange="updateField('${field.id}','required',this.checked)">
-                    <label class="form-check-label" for="reqChk">Required</label>
-                </div>
+                ${requiredHideTogglesHtml(field)}
                 ${fieldWidthToggleHtml(field)}
             `;
             return;
@@ -1082,10 +1168,7 @@
                 <label class="form-label">Section Title</label>
                 <input class="form-control mb-2" value="${field.label}" onchange="updateField('${field.id}','label',this.value)" />
 
-                <div class="form-check mb-3">
-                    <input type="checkbox" class="form-check-input" id="reqChk" ${field.required ? 'checked' : ''} onchange="updateField('${field.id}','required',this.checked)">
-                    <label class="form-check-label" for="reqChk">Required</label>
-                </div>
+                <div class="mb-3">${requiredHideTogglesHtml(field)}</div>
 
                 <label class="form-label">Mode</label>
                 <select class="form-select mb-2" onchange="updateField('${field.id}','gatewayMode',this.value)">
@@ -1150,10 +1233,7 @@
                 </div>` : `<p class="text-muted small mb-2">No PDF uploaded yet.</p>`}
                 `}
 
-                <div class="form-check">
-                    <input type="checkbox" class="form-check-input" id="reqChk" ${field.required ? 'checked' : ''} onchange="updateField('${field.id}','required',this.checked)">
-                    <label class="form-check-label" for="reqChk">Required</label>
-                </div>
+                ${requiredHideTogglesHtml(field)}
                 ${fieldWidthToggleHtml(field)}
             `;
             return;
@@ -1221,10 +1301,7 @@
             ${!skipLabelEdit ? `
             <label class="form-label">Placeholder</label>
             <input class="form-control mb-2" value="${field.placeholder}" onchange="updateField('${field.id}','placeholder',this.value)" />
-            <div class="form-check">
-                <input type="checkbox" class="form-check-input" id="reqChk" ${field.required ? 'checked' : ''} onchange="updateField('${field.id}','required',this.checked)">
-                <label class="form-check-label" for="reqChk">Required</label>
-            </div>
+            ${requiredHideTogglesHtml(field)}
             ${fieldWidthToggleHtml(field)}` : ''}
             ${extraHtml}
         `;
@@ -1289,6 +1366,291 @@
     }
 
     // ============================================================
+    // ✅ ADDED — CONDITIONS MODAL
+    // ============================================================
+    function condFieldLabel(fieldId) {
+        const f = formFields.find(x => x.id === fieldId);
+        return f ? (f.label || f.type) : '(deleted field)';
+    }
+
+    function condTriggerableFields() {
+        return formFields.filter(f => !COND_TRIGGER_EXCLUDED_TYPES.includes(f.type));
+    }
+
+    function condTargetableFields(excludeId) {
+        return formFields.filter(f => !COND_TARGET_EXCLUDED_TYPES.includes(f.type) && f.id !== excludeId);
+    }
+
+    function condOperatorNeedsValue(operatorId) {
+        return operatorId !== 'isChecked' && operatorId !== 'isEmpty' && operatorId !== 'notEmpty';
+    }
+
+    function openConditionsModal() {
+        condModalView = 'list';
+        condDraft = null;
+        condEditingId = null;
+        document.getElementById('condOverlay').style.display = 'flex';
+        renderConditionsModal();
+    }
+
+    function closeConditionsModal() {
+        document.getElementById('condOverlay').style.display = 'none';
+    }
+
+    function addNewCondition() {
+        const triggerable = condTriggerableFields();
+        if (!triggerable.length) {
+            alert('Add at least one field to the form before creating a condition.');
+            return;
+        }
+        conditionCounter++;
+        condDraft = {
+            id: 'c' + conditionCounter,
+            triggerFieldId: triggerable[0].id,
+            operator: 'equals',
+            triggerValue: '',
+            category: 'showhide',
+            action: 'show',
+            targetFieldIds: [],
+            sourceFieldId: ''
+        };
+        condEditingId = null;
+        // ✅ CHANGED — start on the category picker (Show/Hide, Enable/Require/Mask, Update)
+        // instead of jumping straight into the editor, so all three action types are reachable.
+        condModalView = 'category';
+        renderConditionsModal();
+    }
+
+    function editCondition(id) {
+        const rule = formConditions.find(r => r.id === id);
+        if (!rule) return;
+        condDraft = JSON.parse(JSON.stringify(rule));
+        if (!condDraft.category) condDraft.category = condGroupForAction(condDraft.action); // ✅ ADDED — infer category for rules saved before this existed
+        condEditingId = id;
+        condModalView = 'editor';
+        renderConditionsModal();
+    }
+
+    // ✅ ADDED — category picker step
+    function selectConditionCategory(catId) {
+        if (!condDraft) return;
+        condDraft.category = catId;
+        const group = COND_ACTION_GROUPS.find(g => g.id === catId);
+        if (group && !group.actions.includes(condDraft.action)) {
+            condDraft.action = group.actions[0];
+        }
+        renderConditionsModal();
+    }
+
+    function proceedToConditionEditor() {
+        if (!condDraft || !condDraft.category) return;
+        condModalView = 'editor';
+        renderConditionsModal();
+    }
+
+    function backToConditionCategory() {
+        if (!condDraft) return;
+        condModalView = 'category';
+        renderConditionsModal();
+    }
+
+    function deleteCondition(id) {
+        if (!confirm('Delete this condition?')) return;
+        formConditions = formConditions.filter(r => r.id !== id);
+        renderConditionsModal();
+    }
+
+    function cancelConditionEditor() {
+        condDraft = null;
+        condEditingId = null;
+        condModalView = 'list';
+        renderConditionsModal();
+    }
+
+    function updateConditionDraft(key, value) {
+        if (!condDraft) return;
+        condDraft[key] = value;
+        if (key === 'triggerFieldId') {
+            // Value the field no longer meaningfully carries over across field changes
+            condDraft.triggerValue = '';
+        }
+        renderConditionsModal();
+    }
+
+    function toggleConditionTarget(fieldId, checked) {
+        if (!condDraft) return;
+        if (!Array.isArray(condDraft.targetFieldIds)) condDraft.targetFieldIds = [];
+        if (checked) {
+            if (!condDraft.targetFieldIds.includes(fieldId)) condDraft.targetFieldIds.push(fieldId);
+        } else {
+            condDraft.targetFieldIds = condDraft.targetFieldIds.filter(id => id !== fieldId);
+        }
+    }
+
+    function saveConditionDraft() {
+        if (!condDraft || !condDraft.triggerFieldId) return;
+        if (condDraft.category === 'update' && !condDraft.sourceFieldId) {
+            alert('Choose which field\'s value should be copied.');
+            return;
+        }
+        if (!condDraft.targetFieldIds || !condDraft.targetFieldIds.length) {
+            alert(condDraft.category === 'update'
+                ? 'Select at least one field to copy the value into.'
+                : 'Select at least one target field for this condition.');
+            return;
+        }
+        if (condOperatorNeedsValue(condDraft.operator) && !condDraft.triggerValue) {
+            alert('Enter a value to compare against, or choose an operator that doesn\'t need one (Is Checked / Is Empty / Is Not Empty).');
+            return;
+        }
+        if (condEditingId) {
+            const idx = formConditions.findIndex(r => r.id === condEditingId);
+            if (idx > -1) formConditions[idx] = condDraft;
+        } else {
+            formConditions.push(condDraft);
+        }
+        condDraft = null;
+        condEditingId = null;
+        condModalView = 'list';
+        renderConditionsModal();
+    }
+
+    function renderConditionsModal() {
+        const body = document.getElementById('condModalBody');
+        const title = document.getElementById('condModalTitle');
+
+        // ✅ ADDED — category picker (Show/Hide Field / Enable/Require/Mask Field / Update Field)
+        if (condModalView === 'category') {
+            title.textContent = 'Manage Conditional Logic';
+            body.innerHTML = `
+                <div class="fb-cond-category">
+                    <div class="fb-cond-category-grid">
+                        ${COND_ACTION_GROUPS.map(g => `
+                            <div class="fb-cond-category-card ${condDraft.category === g.id ? 'active' : ''}" onclick="selectConditionCategory('${g.id}')">
+                                <input type="radio" name="condCategory" ${condDraft.category === g.id ? 'checked' : ''} onclick="event.stopPropagation(); selectConditionCategory('${g.id}')">
+                                <div>
+                                    <div class="fb-cond-category-title">${g.label}</div>
+                                    <div class="fb-cond-category-desc text-muted small">${g.desc}</div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="d-flex justify-content-end gap-2 mt-3">
+                        <button type="button" class="btn btn-outline-secondary" onclick="cancelConditionEditor()">Cancel</button>
+                        <button type="button" class="btn btn-primary" onclick="proceedToConditionEditor()">Continue</button>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        if (condModalView === 'editor') {
+            title.textContent = condEditingId ? '✏️ Edit Condition' : '➕ New Condition';
+            const triggerable = condTriggerableFields();
+            const triggerField = formFields.find(f => f.id === condDraft.triggerFieldId);
+            const needsValue = condOperatorNeedsValue(condDraft.operator);
+            const hasOptions = triggerField && Array.isArray(triggerField.options) && triggerField.options.length;
+            const category = condDraft.category || condGroupForAction(condDraft.action);
+            const group = COND_ACTION_GROUPS.find(g => g.id === category) || COND_ACTION_GROUPS[0];
+            const groupActions = COND_ACTIONS.filter(a => group.actions.includes(a.id));
+            const isUpdate = category === 'update';
+
+            // For "Update Field": exclude the chosen source field from the destination list.
+            // For everything else: exclude the trigger field from the target list (as before).
+            const targetable = isUpdate
+                ? condTargetableFields(condDraft.sourceFieldId)
+                : condTargetableFields(condDraft.triggerFieldId);
+
+            body.innerHTML = `
+                <div class="fb-cond-editor">
+                    <a href="javascript:void(0)" class="fb-cond-back-link" onclick="backToConditionCategory()">← Select Condition Action Type</a>
+
+                    <label class="form-label mt-2">If</label>
+                    <select class="form-select mb-2" onchange="updateConditionDraft('triggerFieldId', this.value)">
+                        ${triggerable.map(f => `<option value="${f.id}" ${f.id === condDraft.triggerFieldId ? 'selected' : ''}>${f.label} (${f.type})</option>`).join('')}
+                    </select>
+
+                    <label class="form-label">Condition</label>
+                    <select class="form-select mb-2" onchange="updateConditionDraft('operator', this.value)">
+                        ${COND_OPERATORS.map(o => `<option value="${o.id}" ${o.id === condDraft.operator ? 'selected' : ''}>${o.label}</option>`).join('')}
+                    </select>
+
+                    ${needsValue ? `
+                        <label class="form-label">Value</label>
+                        ${hasOptions ? `
+                            <select class="form-select mb-2" onchange="updateConditionDraft('triggerValue', this.value)">
+                                <option value="">-- Select a value --</option>
+                                ${triggerField.options.map(o => `<option value="${o}" ${o === condDraft.triggerValue ? 'selected' : ''}>${o}</option>`).join('')}
+                            </select>
+                        ` : `
+                            <input type="text" class="form-control mb-2" value="${condDraft.triggerValue || ''}" onchange="updateConditionDraft('triggerValue', this.value)" placeholder="Value to compare against" />
+                        `}
+                    ` : ''}
+
+                    ${isUpdate ? `
+                        <label class="form-label">Then copy value from</label>
+                        <select class="form-select mb-2" onchange="updateConditionDraft('sourceFieldId', this.value)">
+                            <option value="">-- Select a field --</option>
+                            ${triggerable.map(f => `<option value="${f.id}" ${f.id === condDraft.sourceFieldId ? 'selected' : ''}>${f.label} (${f.type})</option>`).join('')}
+                        </select>
+
+                        <label class="form-label">Into field(s)</label>
+                    ` : `
+                        <label class="form-label">Then</label>
+                        <select class="form-select mb-2" onchange="updateConditionDraft('action', this.value)">
+                            ${groupActions.map(a => `<option value="${a.id}" ${a.id === condDraft.action ? 'selected' : ''}>${a.label}</option>`).join('')}
+                        </select>
+
+                        <label class="form-label">On field(s)</label>
+                    `}
+                    <div class="fb-cond-target-list">
+                        ${targetable.length ? targetable.map(f => `
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="condTarget_${f.id}"
+                                       ${condDraft.targetFieldIds && condDraft.targetFieldIds.includes(f.id) ? 'checked' : ''}
+                                       onchange="toggleConditionTarget('${f.id}', this.checked)">
+                                <label class="form-check-label" for="condTarget_${f.id}">${f.label} (${f.type})</label>
+                            </div>
+                        `).join('') : '<p class="text-muted small">No other fields available to target.</p>'}
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-3">
+                        <button type="button" class="btn btn-outline-secondary" onclick="cancelConditionEditor()">Cancel</button>
+                        <button type="button" class="btn btn-primary" onclick="saveConditionDraft()">Save Condition</button>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        // List view
+        title.textContent = '⚙️ Conditional Logic';
+        const opLabel = id => (COND_OPERATORS.find(o => o.id === id) || {}).label || id;
+        const actionLabel = id => (COND_ACTIONS.find(a => a.id === id) || {}).label || id;
+        const thenLabel = rule => rule.action === 'update'
+            ? `Copy "${condFieldLabel(rule.sourceFieldId)}" into ${(rule.targetFieldIds || []).map(condFieldLabel).join(', ') || '(none)'}`
+            : `${actionLabel(rule.action)}: ${(rule.targetFieldIds || []).map(condFieldLabel).join(', ')}`;
+
+        body.innerHTML = `
+            <div class="fb-cond-list">
+                ${formConditions.length ? formConditions.map(rule => `
+                    <div class="fb-cond-row">
+                        <div>
+                            <div><strong>If</strong> ${condFieldLabel(rule.triggerFieldId)} <strong>${opLabel(rule.operator).toLowerCase()}</strong>${condOperatorNeedsValue(rule.operator) ? ` "${rule.triggerValue}"` : ''}</div>
+                            <div class="text-muted small"><strong>Then</strong> ${thenLabel(rule)}</div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="editCondition('${rule.id}')">Edit</button>
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteCondition('${rule.id}')">Delete</button>
+                        </div>
+                    </div>
+                `).join('') : '<p class="text-muted small">No conditions yet. Conditions let you show/hide, require, mask, or copy values between fields based on what the visitor fills in elsewhere on the form.</p>'}
+            </div>
+            <button type="button" class="btn btn-primary w-100 mt-3" onclick="addNewCondition()">+ Add New Condition</button>
+        `;
+    }
+
+    // ============================================================
     // SAVE / LOAD
     // ============================================================
     function saveForm() {
@@ -1309,7 +1671,8 @@
             logoUrl: document.getElementById('logoUrl').value || null,
             logoWidth: logoWidth,
             logoHeight: logoHeight,
-            design: JSON.stringify(formDesign)
+            design: JSON.stringify(formDesign),
+            conditions: JSON.stringify(formConditions)   // ✅ ADDED
         };
 
         fetch('/Admin/Form/SaveFormSchema', {
@@ -1394,6 +1757,26 @@
                                         formDesign = Object.assign({}, formDesign, savedDesign || {});
                                     } catch (e2) {
                                         console.error('Failed to parse saved form design', e2);
+                                    }
+                                }
+
+                                // ✅ ADDED — restore the saved submit button text onto the canvas
+                                // button (renderCanvas() doesn't touch the submit button, so this
+                                // has to be applied explicitly after formDesign is loaded).
+                                const submitBtnEl = document.querySelector('.fb-submit-btn');
+                                if (submitBtnEl) submitBtnEl.textContent = formDesign.submitButtonText || 'Submit';
+
+                                // ✅ ADDED — load saved conditional-logic rules
+                                const conditionsJson = @Html.Raw(Json.Serialize((string)ViewBag.FormConditions));
+                                if (conditionsJson) {
+                                    try {
+                                        formConditions = JSON.parse(conditionsJson) || [];
+                                        conditionCounter = formConditions.reduce(function (max, c) {
+                                            const m = /^c(\d+)$/.exec(c.id || '');
+                                            return m ? Math.max(max, parseInt(m[1], 10)) : max;
+                                        }, 0);
+                                    } catch (e3) {
+                                        console.error('Failed to parse saved conditions', e3);
                                     }
                                 }
 
@@ -2212,4 +2595,150 @@
             background: #ff7a1a;
             color: #fff;
         }
+
+    /* ============================================================
+       ✅ ADDED — CONDITIONS BUTTON + MODAL
+       ============================================================ */
+    .btn-conditions-toggle {
+        background: #ffb020;
+        border: none;
+        border-radius: 8px;
+        padding: 9px 18px;
+        font-weight: 600;
+        color: #1c2b39;
+    }
+
+        .btn-conditions-toggle:hover {
+            background: #e69d13;
+            color: #1c2b39;
+        }
+
+    .fb-cond-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(20, 26, 38, .5);
+        z-index: 2000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .fb-cond-modal {
+        background: #fff;
+        width: 640px;
+        max-width: 92vw;
+        max-height: 86vh;
+        overflow-y: auto;
+        border-radius: 12px;
+        padding: 20px 24px;
+        box-shadow: 0 10px 40px rgba(0,0,0,.25);
+    }
+
+    .fb-cond-header {
+        margin-bottom: 14px;
+    }
+
+    .fb-cond-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .fb-cond-row {
+        border: 1px solid #e3e7ee;
+        border-radius: 8px;
+        padding: 10px 14px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .fb-cond-editor .form-label {
+        font-weight: 600;
+        color: #1c2b39;
+        margin-top: 8px;
+    }
+
+    .fb-cond-target-list {
+        max-height: 180px;
+        overflow-y: auto;
+        border: 1px solid #e3e7ee;
+        border-radius: 8px;
+        padding: 10px 12px;
+    }
+
+    /* ============================================================
+       ✅ ADDED — "Hide" field property (Required/Hide toggle row + canvas badge)
+       ============================================================ */
+    .fb-toggle-switch .form-check-input {
+        cursor: pointer;
+    }
+
+    .fb-hidden-badge {
+        font-weight: 500;
+        font-size: 11px;
+        vertical-align: middle;
+    }
+
+    .fb-canvas-item.fb-field-hidden {
+        opacity: .55;
+        background: repeating-linear-gradient(45deg, #fafbfc, #fafbfc 10px, #f2f3f5 10px, #f2f3f5 20px);
+        border: 1px dashed #b9c0cc;
+    }
+
+    /* ============================================================
+       ✅ ADDED — CONDITION CATEGORY PICKER (Show/Hide, Enable/Require/Mask, Update)
+       ============================================================ */
+    .fb-cond-back-link {
+        display: inline-block;
+        font-size: 13px;
+        font-weight: 600;
+        color: #4a7cf6;
+        text-decoration: none;
+        margin-bottom: 6px;
+    }
+
+        .fb-cond-back-link:hover {
+            text-decoration: underline;
+        }
+
+    .fb-cond-category-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+
+    .fb-cond-category-card {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        border: 2px solid #e3e7ee;
+        border-radius: 10px;
+        padding: 14px 16px;
+        cursor: pointer;
+        transition: border-color .15s ease, background .15s ease;
+    }
+
+        .fb-cond-category-card:hover {
+            border-color: #b9c6e6;
+        }
+
+        .fb-cond-category-card.active {
+            border-color: #22c55e;
+            background: #f2fbf5;
+        }
+
+        .fb-cond-category-card input[type="radio"] {
+            margin-top: 4px;
+        }
+
+    .fb-cond-category-title {
+        font-weight: 700;
+        color: #1c2b39;
+    }
+
+    .fb-cond-category-desc {
+        margin-top: 2px;
+    }
 </style>

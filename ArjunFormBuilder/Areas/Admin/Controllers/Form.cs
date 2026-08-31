@@ -43,6 +43,7 @@ namespace ArjunFormBuilder.Areas.Admin.Controllers
                     ViewBag.LogoWidth = form.LogoWidth;
                     ViewBag.LogoHeight = form.LogoHeight;
                     ViewBag.FormDesign = form.DesignJson;
+                    ViewBag.FormConditions = form.ConditionsJson;   // ✅ ADDED
 
                 }
             }

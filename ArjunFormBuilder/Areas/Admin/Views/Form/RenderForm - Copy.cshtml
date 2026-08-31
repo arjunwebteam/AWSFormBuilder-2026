@@ -354,7 +354,6 @@
                 var logoBgColor = "";
                 var logoAlignment = "center";
                 var logoAltText = "";
-                var submitButtonText = "Submit";   // ✅ ADDED — server-side fallback so the saved text shows even before JS runs
                 if (!string.IsNullOrEmpty(Model.DesignJson))
                 {
                     try
@@ -363,8 +362,6 @@
                         if (designObj["logoBgColor"] != null) logoBgColor = designObj["logoBgColor"].ToString();
                         if (designObj["logoAlignment"] != null) logoAlignment = designObj["logoAlignment"].ToString();
                         if (designObj["logoAltText"] != null) logoAltText = designObj["logoAltText"].ToString();
-                        if (designObj["submitButtonText"] != null && !string.IsNullOrWhiteSpace(designObj["submitButtonText"].ToString()))
-                            submitButtonText = designObj["submitButtonText"].ToString();
                     }
                     catch { }
                 }
@@ -388,7 +385,7 @@
                 <form id="dynamicForm" novalidate>
                     <div id="formFieldsContainer"></div>
                     <div class="submit-wrap">
-                        <button type="submit" class="btn btn-submit-form">@submitButtonText</button>
+                        <button type="submit" class="btn btn-submit-form">Submit</button>
                     </div>
                 </form>
             </div>
@@ -469,13 +466,6 @@
                 if (submitBtn) {
                     submitBtn.style.cssText = d.buttonCss + 'border:none; border-radius:8px; padding:12px 40px; font-weight:600; font-size:15px;';
                 }
-            }
-
-            // ✅ ADDED — Button text (the server already renders the saved text so this is
-            // mainly a safety net in case the design JSON is updated without a full reload).
-            if (d.submitButtonText) {
-                const submitBtnText = document.querySelector('.btn-submit-form');
-                if (submitBtnText) submitBtnText.textContent = d.submitButtonText;
             }
         }
 
