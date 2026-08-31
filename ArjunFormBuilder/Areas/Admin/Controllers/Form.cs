@@ -24,8 +24,6 @@ namespace ArjunFormBuilder.Areas.Admin.Controllers
         BLL.FormBLL _formBLL = new BLL.FormBLL();
         DAL.FormDAL _DFormSubmissions = new DAL.FormDAL();
         Entities.MailTemplates objMailTemplates = new Entities.MailTemplates();
-
-
         BLL.MailTemplates _mailTemplatesBLL = new BLL.MailTemplates();
 
         [Authorize]
@@ -71,8 +69,8 @@ namespace ArjunFormBuilder.Areas.Admin.Controllers
             int status = 0;
             try
             {
-                _formBLL.SaveThankYouContent(FormId, ThankYouContent, ref status);
-                TempData["message"] = status > 0
+                    _formBLL.SaveThankYouContent(FormId, ThankYouContent, ref status);
+                    TempData["message"] = status > 0
                     ? "<div class=\"alert alert-success\">Thank You Page updated successfully</div>"
                     : "<div class=\"alert alert-danger\">Failed to update Thank You Page</div>";
             }
@@ -99,7 +97,6 @@ namespace ArjunFormBuilder.Areas.Admin.Controllers
 
                 string fileName = Guid.NewGuid().ToString("N") + Path.GetExtension(logo.FileName);
 
-                // Save path stays the same — this is correct
                 string normalPath = Path.Combine(objappinfo.UploadPath, "FormLogos", "NormalImages", fileName);
                 Directory.CreateDirectory(Path.GetDirectoryName(normalPath));
 
@@ -155,11 +152,6 @@ namespace ArjunFormBuilder.Areas.Admin.Controllers
             }
         }
 
-        // ✅ ADDED — saves a visitor's "Upload File"/"Image" field to disk when they submit a
-        // form, and returns a URL so the submission can store something real instead of just a
-        // filename. Not [Authorize] — the public share/embed link (Fill, above) has no login, so
-        // anonymous visitors filling out the form need to be able to call this too, same as
-        // SubmitForm itself.
         [HttpPost]
         public JsonResult UploadFormFieldFile(IFormFile file)
         {
@@ -215,7 +207,6 @@ namespace ArjunFormBuilder.Areas.Admin.Controllers
             }
         }
 
-        // ================= List page =================
         [Authorize]
         public ActionResult Index(Int64 ChapterId = 0)
         {
@@ -685,116 +676,6 @@ namespace ArjunFormBuilder.Areas.Admin.Controllers
                     newRow["Payment Gateway"] = row["PaymentGateway"] != DBNull.Value ? row["PaymentGateway"].ToString() : "";
                     newRow["Payment Amount"] = row["PaymentAmount"] != DBNull.Value ? row["PaymentAmount"].ToString() : "";
 
-                    dtFinal.Rows.Add(newRow);
-                }
-
-                using (var workbook = new ClosedXML.Excel.XLWorkbook())
-                {
-                    var worksheet = workbook.Worksheets.Add("FormSubmissions-Export");
-
-                    for (int col = 0; col < dtFinal.Columns.Count; col++)
-                    {
-                        var headerCell = worksheet.Cell(1, col + 1);
-                        headerCell.Value = dtFinal.Columns[col].ColumnName;
-
-                        headerCell.Style.Font.Bold = true;
-                        headerCell.Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.FromArgb(173, 216, 230);
-                    }
-
-                    for (int row = 0; row < dtFinal.Rows.Count; row++)
-                    {
-                        for (int col = 0; col < dtFinal.Columns.Count; col++)
-                        {
-                            worksheet.Cell(row + 2, col + 1).Value = dtFinal.Rows[row][col]?.ToString() ?? "";
-                        }
-                    }
-
-                    worksheet.Columns().AdjustToContents();
-
-                    using (var stream = new MemoryStream())
-                    {
-                        workbook.SaveAs(stream);
-                        var content = stream.ToArray();
-
-                        int status = 0;
-                        var form = _formBLL.GetFormSchema(formId, ref status);
-                        string formTitle = form != null ? form.Title : "Form";
-                        string safeTitle = string.Join("_", formTitle.Split(Path.GetInvalidFileNameChars()));
-
-                        string fileName = $"FormSubmissions-{safeTitle}-{DateTime.UtcNow:dd-MM-yyyy}.xlsx";
-
-                        return File(
-                            content,
-                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            fileName
-                        );
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                TempData["message"] = $"Export failed: {ex.Message}";
-                return RedirectToAction("FormSubmissions", new { formId = formId });
-            }
-        }
-        [Authorize]
-        public IActionResult FormSubmissionsExportToExcelbkp(string search = "", string sortColumn = "SubmittedDate", string sortOrder = "DESC", long formId = 0)
-        {
-            try
-            {
-                string sort = !string.IsNullOrEmpty(sortColumn)
-                                ? $"{sortColumn} {sortOrder}"
-                                : "";
-
-                // 1. Get DataTable from DAL (Filtered by formId)
-                DataTable dtRaw = _DFormSubmissions.FormSubmissionsExportToExcel(search, sort, formId);
-
-                if (dtRaw == null || dtRaw.Rows.Count == 0)
-                {
-                    TempData["message"] = $"Export failed: No records found.";
-                    return RedirectToAction("FormSubmissions", new { formId = formId });
-                }
-
-
-                DataTable dtFinal = new DataTable();
-                dtFinal.Columns.Add("Submitted By", typeof(string));
-                dtFinal.Columns.Add("Submitted Date", typeof(string));
-
-                bool columnsAdded = false;
-
-                foreach (DataRow row in dtRaw.Rows)
-                {
-                    string jsonData = row["SubmittedData"].ToString();
-
-
-                    var submissionData = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, object>>(jsonData);
-
-                    if (submissionData != null && !columnsAdded)
-                    {
-                        foreach (var key in submissionData.Keys)
-                        {
-                            if (!dtFinal.Columns.Contains(key))
-                            {
-                                dtFinal.Columns.Add(key, typeof(string));
-                            }
-                        }
-                        columnsAdded = true;
-                    }
-
-                    DataRow newRow = dtFinal.NewRow();
-                    newRow["Submitted By"] = row["SubmittedBy"];
-                    newRow["Submitted Date"] = Convert.ToDateTime(row["SubmittedDate"]).ToString("dd/MM/yyyy hh:mm tt");
-
-                    if (submissionData != null)
-                    {
-                        foreach (var kvp in submissionData)
-                        {
-                            if (dtFinal.Columns.Contains(kvp.Key))
-                            {
-                                newRow[kvp.Key] = kvp.Value?.ToString() ?? "";
-                            }
-                        }
-                    }
                     dtFinal.Rows.Add(newRow);
                 }
 
